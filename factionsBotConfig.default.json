@@ -7,5 +7,22 @@
     "Output": "stderr",
     "Logfile": ""
   },
-  "Guilds": null
+  "Guilds": {
+    "123456789012345678": {
+      "GuildName": "DerpGuild",
+      "WallsEnabled": false,
+      "WallsCheckTimeout": 900000000000,
+      "WallsCheckReminder": 300000000000,
+      "WallsCheckChannelID": "#123456789012345678",
+      "WallsRoleMention": "@\u0026123456789012345678",
+      "Players": {
+        "123456789012345678": {
+          "PlayerString": "Derp#1234",
+          "PlayerMention": "@123456789012345678",
+          "WallChecks": 0,
+          "LastWallCheck": "0001-01-01T00:00:00Z"
+        }
+      }
+    }
+  }
 }
