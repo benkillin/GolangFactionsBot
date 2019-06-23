@@ -1,0 +1,11 @@
+{
+  "Token": "",
+  "CommandPrefix": ".",
+  "Logging": {
+    "Level": "trace",
+    "Format": "text",
+    "Output": "stderr",
+    "Logfile": ""
+  },
+  "Guilds": null
+}
