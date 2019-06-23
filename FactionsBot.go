@@ -102,16 +102,16 @@ func main() {
     }
 
 	botID = bot.ID
-
     d.AddHandler(messageHandler)
 
     err = d.Open()
-
     if err != nil {
         log.Fatalf("Error: unable to establish connection to discord: %s", err)
     }
 
     defer d.Close()
+
+    // TODO: set up goroutines here for loading the saved guilds and setting up timers for wall checks if wall checks are enabled.
 
     <-make(chan struct{})
 }
@@ -141,6 +141,22 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     }
 }
 
+func setCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+    sendTempMsg(d, channelID, "Settings command handler! TODO: this handler!", 5*time.Second)
+}
+
+func helpCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+    sendTempMsg(d, channelID, "Help command handler! TODO: this handler!", 5*time.Second)
+}
+
+func clearCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+    sendTempMsg(d, channelID, "Clear command handler! TODO: this handler!", 5*time.Second)
+}
+
+func weewooCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+    sendTempMsg(d, channelID, "Weewoo command handler! TODO: this handler!", 5*time.Second)
+}
+
 func testCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
     log.Debugf("Incoming TEST Message: %+v\n", msg.Message)
     messageIds := make([]string, 0)
@@ -165,22 +181,6 @@ func testCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID strin
     }
 }
 
-func setCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-    sendTempMsg(d, channelID, "Settings command handler! TODO: this handler!", 5*time.Second)
-}
-
-func helpCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-    sendTempMsg(d, channelID, "Help command handler! TODO: this handler!", 5*time.Second)
-}
-
-func clearCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-    sendTempMsg(d, channelID, "Clear command handler! TODO: this handler!", 5*time.Second)
-}
-
-func weewooCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-    sendTempMsg(d, channelID, "Weewoo command handler! TODO: this handler!", 5*time.Second)
-}
-
 /*func Cmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
 }*/
 
@@ -188,6 +188,7 @@ func hello() (string) {
 	return "Hello, world!"
 }
 
+// send a message including a typing notification.
 func sendMsg(d *discordgo.Session, channelID string, msg string) (string) {
     err := d.ChannelTyping(channelID)
     if err != nil {
@@ -203,6 +204,7 @@ func sendMsg(d *discordgo.Session, channelID string, msg string) (string) {
     return sentMessage.ID
 }
 
+// delete a message
 func deleteMsg(d *discordgo.Session, channelID string, messageID string) (error) {
     err := d.ChannelMessageDelete(channelID, messageID)
     if err != nil {
@@ -213,6 +215,7 @@ func deleteMsg(d *discordgo.Session, channelID string, messageID string) (error)
     return nil
 }
 
+// send a self deleting message "this message will self destruct in 5..." :)
 func sendTempMsg(d *discordgo.Session, channelID string, msg string, timeout time.Duration) {
     go func() {
         messageID := sendMsg(d, channelID, msg)
@@ -221,6 +224,7 @@ func sendTempMsg(d *discordgo.Session, channelID string, msg string, timeout tim
     }()
 }
 
+// set up the logger.
 func setupLogging(config *Config) {
 
     if config.Logging.Format == "text" {
