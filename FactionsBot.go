@@ -103,11 +103,13 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to create discord session: %s", err)
     }
+    log.Infof("Created discord object.")
 
     bot, err := d.User("@me")
     if err != nil {
         log.Fatalf("Failed to get the bot user/access account: %s", err)
     }
+    log.Infof("Obtained self user.")
 
 	botID = bot.ID
     d.AddHandler(messageHandler)
@@ -116,6 +118,7 @@ func main() {
     if err != nil {
         log.Fatalf("Error: unable to establish connection to discord: %s", err)
     }
+    log.Infof("Successfully opened discord connection.")
 
     defer d.Close()
 
@@ -140,8 +143,9 @@ func main() {
                                 config.Guilds[guildID].WallReminders++
                                 durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].WallsLastChecked)
                                 msg := fmt.Sprintf("<@&%s>, reminder to check walls! They have still not been checked! It has been %s since the last check!", 
-                                    config.Guilds[guildID].WallsRoleMention, durationSinceLastChecked)
+                                    config.Guilds[guildID].WallsRoleMention, durationSinceLastChecked.Round(time.Second))
                                 reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, msg)
+                                clearReminderMessages(d, guildID)
                                 config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
                                 config.Guilds[guildID].WallsCheckReminder++
                                 config.Guilds[guildID].LastReminder = time.Now()
@@ -288,13 +292,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
             config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks))
 
     go func() {
-        for i := 0; i < len(config.Guilds[msg.GuildID].ReminderMessages); i++ {
-            messageID := config.Guilds[msg.GuildID].ReminderMessages[i]
-            deleteMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, messageID)
-            time.Sleep(1500 * time.Millisecond)
-        }
-        config.Guilds[msg.GuildID].ReminderMessages = config.Guilds[msg.GuildID].ReminderMessages[:0]
-        ConfigHelper.SaveConfig(configFile, config)
+        clearReminderMessages(d, msg.GuildID)
     } ()
 
     ConfigHelper.SaveConfig(configFile, config)
@@ -417,6 +415,16 @@ func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *disco
     }
 }
 
+func clearReminderMessages(d *discordgo.Session, GuildID string) {
+    for i := 0; i < len(config.Guilds[GuildID].ReminderMessages); i++ {
+        messageID := config.Guilds[GuildID].ReminderMessages[i]
+        deleteMsg(d, config.Guilds[GuildID].WallsCheckChannelID, messageID)
+        time.Sleep(1500 * time.Millisecond)
+    }
+    config.Guilds[GuildID].ReminderMessages = config.Guilds[GuildID].ReminderMessages[:0]
+    ConfigHelper.SaveConfig(configFile, config)
+}
+
 func hello() (string) {
 	return "Hello, world!"
 }
@@ -491,7 +499,6 @@ func setupLogging(config *Config) {
         log.Warn("Warning: log output option not recognized. Valid options are 'file' 'stdout' 'stderr' for config.Logging.output")
     }
 }
-
 
 func remove(s []string, i int) []string {
     s[len(s)-1], s[i] = s[i], s[len(s)-1]
