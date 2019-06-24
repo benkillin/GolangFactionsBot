@@ -284,12 +284,15 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
     config.Guilds[msg.GuildID].WallsLastChecked = time.Now()
     config.Guilds[msg.GuildID].WallReminders = 0
     config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks++
+
+    timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck)
     config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck = time.Now()
 
     sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, 
-        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d.",
+        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d. Time took: %s.",
             config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
-            config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks))
+            config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks,
+            timeTookSinceLastWallCheck.Round(time.Second)))
 
     go func() {
         clearReminderMessages(d, msg.GuildID)
@@ -309,7 +312,7 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
     go func() {
         for i := 0; i < 3; i++ {
             sendTempMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
-                fmt.Sprintf("<@&%s>", config.Guilds[msg.GuildID].WallsRoleMention),
+                fmt.Sprintf("<@&%s> WE ARE BEING RAIDED!", config.Guilds[msg.GuildID].WallsRoleMention),
                 30 * time.Second)
             time.Sleep(500 * time.Millisecond)
         }
