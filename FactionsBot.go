@@ -21,8 +21,9 @@ var (
 type Config struct {
     Token string
     CommandPrefix string
+    TimerLoopTimeout time.Duration
     Logging LoggingConfig
-    Guilds map[string]GuildConfig
+    Guilds map[string]*GuildConfig
 }
 
 // LoggingConfig configuration as part of the config object.
@@ -39,9 +40,10 @@ type GuildConfig struct {
     WallsEnabled bool
     WallsCheckTimeout time.Duration
     WallsCheckReminder time.Duration
+    WallsLastChecked time.Time
     WallsCheckChannelID string
     WallsRoleMention string
-    Players map[string]PlayerConfig
+    Players map[string]*PlayerConfig
 }
 
 // PlayerConfig represents the players and their scores.
@@ -57,25 +59,26 @@ func main() {
     defaultConfig := &Config{
         Token: "",
         CommandPrefix: ".",
+        TimerLoopTimeout: 5 * time.Second,
         Logging: LoggingConfig {
             Level: "trace",
             Format: "text",
             Output: "stderr",
             Logfile: ""},
-            Guilds: map[string]GuildConfig{
-                "123456789012345678": GuildConfig{
-                    GuildName: "DerpGuild",
-                    WallsEnabled: false,
-                    WallsCheckTimeout: 15*time.Minute,
-                    WallsCheckReminder: 5*time.Minute,
-                    WallsCheckChannelID: "#123456789012345678",
-                    WallsRoleMention: "@&123456789012345678",
-                    Players: map[string]PlayerConfig{
-                        "123456789012345678": PlayerConfig{
-                            PlayerString: "Derp#1234",
-                            PlayerMention: "@123456789012345678",
-                            WallChecks: 0,
-                            LastWallCheck: time.Time{}}}}}} // the default config
+        Guilds: map[string]*GuildConfig{
+            "123456789012345678": &GuildConfig{
+                GuildName: "DerpGuild",
+                WallsEnabled: false,
+                WallsCheckTimeout: 15*time.Minute,
+                WallsCheckReminder: 5*time.Minute,
+                WallsCheckChannelID: "#123456789012345678",
+                WallsRoleMention: "@&123456789012345678",
+                Players: map[string]*PlayerConfig{
+                    "123456789012345678": &PlayerConfig{
+                        PlayerString: "Derp#1234",
+                        PlayerMention: "@123456789012345678",
+                        WallChecks: 0,
+                        LastWallCheck: time.Time{}}}}}} // the default config
     config = &Config{} // the running configuration
 
     // This is debug code basically to keep the default json file updated which is checked into git.
@@ -111,7 +114,18 @@ func main() {
 
     defer d.Close()
 
-    // TODO: set up goroutines here for loading the saved guilds and setting up timers for wall checks if wall checks are enabled.
+    // goroutine for looping through guilds and checking last checked time
+    go func() {
+        for {
+            for guildID := range config.Guilds {
+                if config.Guilds[guildID].WallsEnabled {
+
+                }
+            }
+
+            time.Sleep(config.TimerLoopTimeout)
+        }
+    }()
 
     <-make(chan struct{})
 }
@@ -129,35 +143,95 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 
     switch splitContent[0]{
     case config.CommandPrefix + "test":
-        testCmd(d, msg, msg.ChannelID)
+        testCmd(d, msg.ChannelID, msg, splitContent)
     case config.CommandPrefix + "set":
-        setCmd(d ,msg, msg.ChannelID)
+        setCmd(d, msg.ChannelID, msg, splitContent)
     case config.CommandPrefix + "clear":
-        clearCmd(d, msg, msg.ChannelID)
+        clearCmd(d, msg.ChannelID, msg, splitContent)
     case config.CommandPrefix + "weewoo":
-        weewooCmd(d, msg, msg.ChannelID)
+        weewooCmd(d, msg.ChannelID, msg, splitContent)
     case config.CommandPrefix + "help":
-        helpCmd(d, msg, msg.ChannelID)
+        helpCmd(d, msg.ChannelID, msg, splitContent)
     }
 }
 
-func setCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-    sendTempMsg(d, channelID, "Settings command handler! TODO: this handler!", 5*time.Second)
+func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
+    deleteMsg(d, msg.ChannelID, msg.ID)
+
+    if len(splitMessage) > 1 {
+        log.Debugf("Incoming message: %+v", msg.Message)
+
+        checkGuild(d, channelID, msg.GuildID)
+
+        subcommand := splitMessage[1]
+
+        switch subcommand {
+        case "walls":
+            if len(splitMessage) > 2 {
+                changed := false
+
+                switch splitMessage[2] {
+                case "on":
+                    config.Guilds[msg.GuildID].WallsEnabled = true
+                    changed = true
+                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled!"), 5 * time.Second)
+
+                case "off":
+                    config.Guilds[msg.GuildID].WallsEnabled = false
+                    changed = true
+
+                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled."), 5 * time.Second)
+
+                case "channel":
+                    if len(splitMessage) > 3 {
+                        wallsChannel := splitMessage[3]
+                        wallsChannelID := strings.Replace(wallsChannel, "<", "", -1)
+                        wallsChannelID = strings.Replace(wallsChannelID, ">", "", -1)
+                        wallsChannelID = strings.Replace(wallsChannelID, "#", "", -1)
+
+                        config.Guilds[msg.GuildID].WallsCheckChannelID = wallsChannelID
+                        sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send reminders to <#%s>", wallsChannelID), 5*time.Second)
+                        changed = true
+                    }
+
+                case "timeout":
+                    changed = true
+
+                case "reminder": 
+                    changed = true
+
+                case "role":
+                    changed = true
+
+                default:
+                    sendCurrentWallsSettings(d, channelID, msg)
+                }
+
+                if changed {
+                    ConfigHelper.SaveConfig(configFile, config)
+                }
+            } else {
+                sendCurrentWallsSettings(d, channelID, msg)
+            }
+        }
+    } else {
+        helpCmd(d, channelID, msg, splitMessage)
+    }
 }
 
-func helpCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     sendTempMsg(d, channelID, "Help command handler! TODO: this handler!", 5*time.Second)
 }
 
-func clearCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     sendTempMsg(d, channelID, "Clear command handler! TODO: this handler!", 5*time.Second)
 }
 
-func weewooCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     sendTempMsg(d, channelID, "Weewoo command handler! TODO: this handler!", 5*time.Second)
 }
 
-func testCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
+func testCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     log.Debugf("Incoming TEST Message: %+v\n", msg.Message)
     messageIds := make([]string, 0)
     log.Debugf("Mention of author: %s; String of author: %s; author ID: %s", msg.Author.Mention(), msg.Author.String(), msg.Author.ID)
@@ -183,6 +257,52 @@ func testCmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID strin
 
 /*func Cmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
 }*/
+
+func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
+    guild, err := d.Guild(GuildID)
+    if err != nil {
+        log.Errorf("Error obtaining guild: %s", err)
+        sendMsg(d, channelID, fmt.Sprintf("Error obtaining guild: %s", err))
+        return
+    }
+
+    if _, ok := config.Guilds[GuildID]; !ok {
+        players := make(map[string]*PlayerConfig)
+        config.Guilds[GuildID] = &GuildConfig{
+            GuildName: guild.Name,
+            WallsCheckChannelID: "",
+            WallsCheckReminder: 30*time.Minute,
+            WallsCheckTimeout: 45*time.Minute,
+            WallsEnabled: false,
+            WallsRoleMention: "",
+            Players: players}
+    } else {
+        if guild.Name != config.Guilds[GuildID].GuildName {
+            config.Guilds[GuildID].GuildName = guild.Name
+        } 
+    }
+
+    ConfigHelper.SaveConfig(configFile, config)
+}
+
+func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
+    embed := NewEmbed().
+        SetTitle("Walls settings").
+        SetDescription("Current walls settings").
+        AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
+        AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
+        AddField("Role to mention", "@" + config.Guilds[msg.GuildID].WallsRoleMention).
+        AddField("Check channel", "<#" + config.Guilds[msg.GuildID].WallsCheckChannelID + ">").
+        AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
+        AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
+        AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
+        MessageEmbed
+    _, err := d.ChannelMessageSendEmbed(channelID, embed)
+
+    if err != nil {
+        log.Errorf("Error sending message1: %s", err)
+    }
+}
 
 func hello() (string) {
 	return "Hello, world!"
@@ -257,4 +377,264 @@ func setupLogging(config *Config) {
     } else {
         log.Warn("Warning: log output option not recognized. Valid options are 'file' 'stdout' 'stderr' for config.Logging.output")
     }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// from https://gist.github.com/Necroforger/8b0b70b1a69fa7828b8ad6387ebb3835
+
+//Embed ...
+type Embed struct {
+	*discordgo.MessageEmbed
+}
+
+// Constants for message embed character limits
+const (
+	EmbedLimitTitle       = 256
+	EmbedLimitDescription = 2048
+	EmbedLimitFieldValue  = 1024
+	EmbedLimitFieldName   = 256
+	EmbedLimitField       = 25
+	EmbedLimitFooter      = 2048
+	EmbedLimit            = 4000
+)
+
+//NewEmbed returns a new embed object
+func NewEmbed() *Embed {
+	return &Embed{&discordgo.MessageEmbed{}}
+}
+
+//SetTitle ...
+func (e *Embed) SetTitle(name string) *Embed {
+	e.Title = name
+	return e
+}
+
+//SetDescription [desc]
+func (e *Embed) SetDescription(description string) *Embed {
+	if len(description) > 2048 {
+		description = description[:2048]
+	}
+	e.Description = description
+	return e
+}
+
+//AddField [name] [value]
+func (e *Embed) AddField(name, value string) *Embed {
+	if len(value) > 1024 {
+		value = value[:1024]
+	}
+
+	if len(name) > 1024 {
+		name = name[:1024]
+	}
+
+	e.Fields = append(e.Fields, &discordgo.MessageEmbedField{
+		Name:  name,
+		Value: value,
+	})
+
+	return e
+
+}
+
+//SetFooter [Text] [iconURL]
+func (e *Embed) SetFooter(args ...string) *Embed {
+	iconURL := ""
+	text := ""
+	proxyURL := ""
+
+	switch {
+	case len(args) > 2:
+		proxyURL = args[2]
+		fallthrough
+	case len(args) > 1:
+		iconURL = args[1]
+		fallthrough
+	case len(args) > 0:
+		text = args[0]
+	case len(args) == 0:
+		return e
+	}
+
+	e.Footer = &discordgo.MessageEmbedFooter{
+		IconURL:      iconURL,
+		Text:         text,
+		ProxyIconURL: proxyURL,
+	}
+
+	return e
+}
+
+//SetImage ...
+func (e *Embed) SetImage(args ...string) *Embed {
+	var URL string
+	var proxyURL string
+
+	if len(args) == 0 {
+		return e
+	}
+	if len(args) > 0 {
+		URL = args[0]
+	}
+	if len(args) > 1 {
+		proxyURL = args[1]
+	}
+	e.Image = &discordgo.MessageEmbedImage{
+		URL:      URL,
+		ProxyURL: proxyURL,
+	}
+	return e
+}
+
+//SetThumbnail ...
+func (e *Embed) SetThumbnail(args ...string) *Embed {
+	var URL string
+	var proxyURL string
+
+	if len(args) == 0 {
+		return e
+	}
+	if len(args) > 0 {
+		URL = args[0]
+	}
+	if len(args) > 1 {
+		proxyURL = args[1]
+	}
+	e.Thumbnail = &discordgo.MessageEmbedThumbnail{
+		URL:      URL,
+		ProxyURL: proxyURL,
+	}
+	return e
+}
+
+//SetAuthor ...
+func (e *Embed) SetAuthor(args ...string) *Embed {
+	var (
+		name     string
+		iconURL  string
+		URL      string
+		proxyURL string
+	)
+
+	if len(args) == 0 {
+		return e
+	}
+	if len(args) > 0 {
+		name = args[0]
+	}
+	if len(args) > 1 {
+		iconURL = args[1]
+	}
+	if len(args) > 2 {
+		URL = args[2]
+	}
+	if len(args) > 3 {
+		proxyURL = args[3]
+	}
+
+	e.Author = &discordgo.MessageEmbedAuthor{
+		Name:         name,
+		IconURL:      iconURL,
+		URL:          URL,
+		ProxyIconURL: proxyURL,
+	}
+
+	return e
+}
+
+//SetURL ...
+func (e *Embed) SetURL(URL string) *Embed {
+	e.URL = URL
+	return e
+}
+
+//SetColor ...
+func (e *Embed) SetColor(clr int) *Embed {
+	e.Color = clr
+	return e
+}
+
+// InlineAllFields sets all fields in the embed to be inline
+func (e *Embed) InlineAllFields() *Embed {
+	for _, v := range e.Fields {
+		v.Inline = true
+	}
+	return e
+}
+
+// Truncate truncates any embed value over the character limit.
+func (e *Embed) Truncate() *Embed {
+	e.TruncateDescription()
+	e.TruncateFields()
+	e.TruncateFooter()
+	e.TruncateTitle()
+	return e
+}
+
+// TruncateFields truncates fields that are too long
+func (e *Embed) TruncateFields() *Embed {
+	if len(e.Fields) > 25 {
+		e.Fields = e.Fields[:EmbedLimitField]
+	}
+
+	for _, v := range e.Fields {
+
+		if len(v.Name) > EmbedLimitFieldName {
+			v.Name = v.Name[:EmbedLimitFieldName]
+		}
+
+		if len(v.Value) > EmbedLimitFieldValue {
+			v.Value = v.Value[:EmbedLimitFieldValue]
+		}
+
+	}
+	return e
+}
+
+// TruncateDescription ...
+func (e *Embed) TruncateDescription() *Embed {
+	if len(e.Description) > EmbedLimitDescription {
+		e.Description = e.Description[:EmbedLimitDescription]
+	}
+	return e
+}
+
+// TruncateTitle ...
+func (e *Embed) TruncateTitle() *Embed {
+	if len(e.Title) > EmbedLimitTitle {
+		e.Title = e.Title[:EmbedLimitTitle]
+	}
+	return e
+}
+
+// TruncateFooter ...
+func (e *Embed) TruncateFooter() *Embed {
+	if e.Footer != nil && len(e.Footer.Text) > EmbedLimitFooter {
+		e.Footer.Text = e.Footer.Text[:EmbedLimitFooter]
+	}
+	return e
 }

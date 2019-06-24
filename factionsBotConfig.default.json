@@ -1,6 +1,7 @@
 {
   "Token": "",
   "CommandPrefix": ".",
+  "TimerLoopTimeout": 5000000000,
   "Logging": {
     "Level": "trace",
     "Format": "text",
@@ -13,6 +14,7 @@
       "WallsEnabled": false,
       "WallsCheckTimeout": 900000000000,
       "WallsCheckReminder": 300000000000,
+      "WallsLastChecked": "0001-01-01T00:00:00Z",
       "WallsCheckChannelID": "#123456789012345678",
       "WallsRoleMention": "@\u0026123456789012345678",
       "Players": {
