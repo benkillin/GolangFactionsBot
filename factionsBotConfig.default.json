@@ -13,7 +13,7 @@
       "GuildName": "DerpGuild",
       "WallsEnabled": false,
       "WallsCheckTimeout": 2700000000000,
-      "WallsCheckReminder": 30000000000,
+      "WallsCheckReminder": 1800000000000,
       "WallsLastChecked": "0001-01-01T00:00:00Z",
       "WallsCheckChannelID": "#123456789012345678",
       "WallsRoleMention": "@\u0026123456789012345678",

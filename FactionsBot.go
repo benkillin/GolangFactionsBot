@@ -74,7 +74,7 @@ func main() {
                 GuildName: "DerpGuild",
                 WallsEnabled: false,
                 WallsCheckTimeout: 45*time.Minute,
-                WallsCheckReminder: 30*time.Second,
+                WallsCheckReminder: 30*time.Minute,
                 WallsCheckChannelID: "#123456789012345678",
                 WallsRoleMention: "@&123456789012345678",
                 Players: map[string]*PlayerConfig{
