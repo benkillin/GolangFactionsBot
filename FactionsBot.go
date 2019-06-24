@@ -43,12 +43,16 @@ type GuildConfig struct {
     WallsLastChecked time.Time
     WallsCheckChannelID string
     WallsRoleMention string
+    WallReminders int
+    ReminderMessages []string
+    LastReminder time.Time
     Players map[string]*PlayerConfig
 }
 
 // PlayerConfig represents the players and their scores.
 type PlayerConfig struct {
     PlayerString string
+    PlayerUsername string
     PlayerMention string
     WallChecks int
     LastWallCheck time.Time
@@ -69,13 +73,14 @@ func main() {
             "123456789012345678": &GuildConfig{
                 GuildName: "DerpGuild",
                 WallsEnabled: false,
-                WallsCheckTimeout: 15*time.Minute,
-                WallsCheckReminder: 5*time.Minute,
+                WallsCheckTimeout: 45*time.Minute,
+                WallsCheckReminder: 30*time.Second,
                 WallsCheckChannelID: "#123456789012345678",
                 WallsRoleMention: "@&123456789012345678",
                 Players: map[string]*PlayerConfig{
                     "123456789012345678": &PlayerConfig{
                         PlayerString: "Derp#1234",
+                        PlayerUsername: "asdfasdfasdf",
                         PlayerMention: "@123456789012345678",
                         WallChecks: 0,
                         LastWallCheck: time.Time{}}}}}} // the default config
@@ -119,7 +124,32 @@ func main() {
         for {
             for guildID := range config.Guilds {
                 if config.Guilds[guildID].WallsEnabled {
+                    lastCheckedPlusTimeout := config.Guilds[guildID].WallsLastChecked.Add(config.Guilds[guildID].WallsCheckTimeout)
+                    if time.Now().After(lastCheckedPlusTimeout) {
+                        if config.Guilds[guildID].WallReminders == 0 {
+                            config.Guilds[guildID].WallReminders = 1
 
+                            reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, 
+                                fmt.Sprintf("It's time to check walls! Time last checked %s", config.Guilds[guildID].WallsLastChecked))
+                            config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
+                            config.Guilds[guildID].LastReminder = time.Now()
+                        } else {
+                            lastReminderPlusReminderInterval := config.Guilds[guildID].LastReminder.Add(config.Guilds[guildID].WallsCheckReminder)
+
+                            if time.Now().After(lastReminderPlusReminderInterval) {
+                                config.Guilds[guildID].WallReminders++
+                                durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].WallsLastChecked)
+                                msg := fmt.Sprintf("<@&%s>, reminder to check walls! They have still not been checked! It has been %s since the last check!", 
+                                    config.Guilds[guildID].WallsRoleMention, durationSinceLastChecked)
+                                reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, msg)
+                                config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
+                                config.Guilds[guildID].WallsCheckReminder++
+                                config.Guilds[guildID].LastReminder = time.Now()
+                            }
+                        }
+
+                        ConfigHelper.SaveConfig(configFile, config)
+                    }
                 }
             }
 
@@ -159,7 +189,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
     deleteMsg(d, msg.ChannelID, msg.ID)
 
     if len(splitMessage) > 1 {
-        log.Debugf("Incoming message: %+v", msg.Message)
+        log.Debugf("Incoming settings message: %+v", msg.Message)
 
         checkGuild(d, channelID, msg.GuildID)
 
@@ -189,18 +219,36 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                         wallsChannelID = strings.Replace(wallsChannelID, ">", "", -1)
                         wallsChannelID = strings.Replace(wallsChannelID, "#", "", -1)
 
-                        config.Guilds[msg.GuildID].WallsCheckChannelID = wallsChannelID
-                        sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send reminders to <#%s>", wallsChannelID), 5*time.Second)
-                        changed = true
+                        _, err := d.Channel(wallsChannelID)
+                        if err != nil {
+                            log.Errorf("Invalid channel specified while setting wall checks channel: %s", err)
+                            sendTempMsg(d, channelID, fmt.Sprintf("Invalid channel specified: %s", err), 10*time.Second)
+                        } else {
+                            config.Guilds[msg.GuildID].WallsCheckChannelID = wallsChannelID
+                            sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send reminders to <#%s>", wallsChannelID), 5*time.Second)
+                            changed = true
+                        }
+                    } else {
+                        sendTempMsg(d, channelID, "usage: " + config.CommandPrefix + "set walls channel #channelNameForWallChecks", 10*time.Second)
+                    }
+
+                case "role":
+                    if len(splitMessage) > 3 {
+                        if len(msg.MentionRoles) > 0 {
+                            mentionRole := msg.MentionRoles[0]
+                            config.Guilds[msg.GuildID].WallsRoleMention = mentionRole
+                            changed = true
+                        } else {
+                            sendTempMsg(d, channelID, "Error - invalid/no role specified", 10*time.Second)
+                        }
+                    } else { 
+                        sendTempMsg(d, channelID, "usage: " + config.CommandPrefix + "set walls role @roleForWallCheckRemidners", 10*time.Second)
                     }
 
                 case "timeout":
                     changed = true
 
                 case "reminder": 
-                    changed = true
-
-                case "role":
                     changed = true
 
                 default:
@@ -224,11 +272,50 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
 }
 
 func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-    sendTempMsg(d, channelID, "Clear command handler! TODO: this handler!", 5*time.Second)
+    deleteMsg(d, msg.ChannelID, msg.ID)
+    log.Debugf("Incoming clear message: %+v", msg.Message)
+    checkGuild(d, channelID, msg.GuildID)
+    checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
+    
+    config.Guilds[msg.GuildID].WallsLastChecked = time.Now()
+    config.Guilds[msg.GuildID].WallReminders = 0
+    config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks++
+    config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck = time.Now()
+
+    sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, 
+        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d.",
+            config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
+            config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks))
+
+    go func() {
+        for i := 0; i < len(config.Guilds[msg.GuildID].ReminderMessages); i++ {
+            messageID := config.Guilds[msg.GuildID].ReminderMessages[i]
+            deleteMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, messageID)
+            time.Sleep(1500 * time.Millisecond)
+        }
+        config.Guilds[msg.GuildID].ReminderMessages = config.Guilds[msg.GuildID].ReminderMessages[:0]
+        ConfigHelper.SaveConfig(configFile, config)
+    } ()
+
+    ConfigHelper.SaveConfig(configFile, config)
 }
 
 func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-    sendTempMsg(d, channelID, "Weewoo command handler! TODO: this handler!", 5*time.Second)
+    deleteMsg(d, msg.ChannelID, msg.ID)
+    log.Debugf("Incoming clear message: %+v", msg.Message)
+    checkGuild(d, channelID, msg.GuildID)
+
+    sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
+        fmt.Sprintf("WEEWOO!!! WEEWOO!!!! WE ARE BEING RAIDED!!!! PLEASE GET ON AND HELP DEFEND THE BASE!!!"))
+    
+    go func() {
+        for i := 0; i < 3; i++ {
+            sendTempMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
+                fmt.Sprintf("<@&%s>", config.Guilds[msg.GuildID].WallsRoleMention),
+                30 * time.Second)
+            time.Sleep(500 * time.Millisecond)
+        }
+    }()
 }
 
 func testCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
@@ -275,6 +362,7 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
             WallsCheckTimeout: 45*time.Minute,
             WallsEnabled: false,
             WallsRoleMention: "",
+            WallReminders: 0,
             Players: players}
     } else {
         if guild.Name != config.Guilds[GuildID].GuildName {
@@ -285,13 +373,38 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
     ConfigHelper.SaveConfig(configFile, config)
 }
 
+func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string) {
+    checkGuild(d, channelID, GuildID)
+    player, err := d.User(authorID)
+    if err != nil {
+        log.Errorf("Error obtaining user information: %s", err)
+        sendMsg(d, channelID, fmt.Sprintf("Error obtaining user information: %s", err))
+        return
+    }
+
+    if _, ok := config.Guilds[GuildID].Players[player.ID]; !ok {
+        config.Guilds[GuildID].Players[player.ID] = &PlayerConfig {
+            PlayerString: player.String(),
+            PlayerUsername: player.Username,
+            PlayerMention: player.Mention(),
+            WallChecks: 0,
+            LastWallCheck: time.Time{}}
+    } else {
+        if player.Username != config.Guilds[GuildID].Players[authorID].PlayerString {
+            config.Guilds[GuildID].Players[authorID].PlayerString = player.String()
+            config.Guilds[GuildID].Players[authorID].PlayerUsername = player.Username
+            config.Guilds[GuildID].Players[authorID].PlayerMention = player.Mention()
+        }
+    }
+}
+
 func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
     embed := NewEmbed().
         SetTitle("Walls settings").
         SetDescription("Current walls settings").
         AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
         AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
-        AddField("Role to mention", "@" + config.Guilds[msg.GuildID].WallsRoleMention).
+        AddField("Role to mention", "<@&" + config.Guilds[msg.GuildID].WallsRoleMention + ">").
         AddField("Check channel", "<#" + config.Guilds[msg.GuildID].WallsCheckChannelID + ">").
         AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
         AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
@@ -380,7 +493,10 @@ func setupLogging(config *Config) {
 }
 
 
-
+func remove(s []string, i int) []string {
+    s[len(s)-1], s[i] = s[i], s[len(s)-1]
+    return s[:len(s)-1]
+}
 
 
 

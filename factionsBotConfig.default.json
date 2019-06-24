@@ -12,14 +12,18 @@
     "123456789012345678": {
       "GuildName": "DerpGuild",
       "WallsEnabled": false,
-      "WallsCheckTimeout": 900000000000,
-      "WallsCheckReminder": 300000000000,
+      "WallsCheckTimeout": 2700000000000,
+      "WallsCheckReminder": 30000000000,
       "WallsLastChecked": "0001-01-01T00:00:00Z",
       "WallsCheckChannelID": "#123456789012345678",
       "WallsRoleMention": "@\u0026123456789012345678",
+      "WallReminders": 0,
+      "ReminderMessages": null,
+      "LastReminder": "0001-01-01T00:00:00Z",
       "Players": {
         "123456789012345678": {
           "PlayerString": "Derp#1234",
+          "PlayerUsername": "asdfasdfasdf",
           "PlayerMention": "@123456789012345678",
           "WallChecks": 0,
           "LastWallCheck": "0001-01-01T00:00:00Z"
