@@ -311,7 +311,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
         AddField("Time taken to clear", fmt.Sprintf("%s", timeTookSinceLastWallCheck)).
         AddField("Time since last check", fmt.Sprintf("%s", playerLastWallCheck)).
         AddField("Time Checked", config.Guilds[msg.GuildID].WallsLastChecked.Format("Jan 2, 2006 at 3:04pm (MST)")).
-        SetFooter(fmt.Sprintf("Thank you, **%s**! You rock!",
+        SetFooter(fmt.Sprintf("Thank you, %s! You rock!",
             config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerUsername), "https://i.imgur.com/cCNP4qR.png").
         SetThumbnail(player.AvatarURL("4096")).
         MessageEmbed
