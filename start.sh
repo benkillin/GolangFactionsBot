@@ -1,5 +1,5 @@
-killall FactionsBot
+killall ./GolangFactionsBot
 
-screen -L -Logfile ./FactionsBot.termoutput.log -dmS "factionsBot" ./FactionsBot
+screen -L -Logfile ./FactionsBot.termoutput.log -dmS "factionsBot" ./GolangFactionsBot
 
 

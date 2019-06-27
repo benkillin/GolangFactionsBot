@@ -8,6 +8,7 @@ import (
     log "github.com/sirupsen/logrus"
     "time"
     "strings"
+    "github.com/benkillin/GolangFactionsBot/EmbedHelper"
 )
 
 var (
@@ -123,46 +124,52 @@ func main() {
     defer d.Close()
 
     // goroutine for looping through guilds and checking last checked time
-    go func() {
-        for {
-            for guildID := range config.Guilds {
-                if config.Guilds[guildID].WallsEnabled {
-                    lastCheckedPlusTimeout := config.Guilds[guildID].WallsLastChecked.Add(config.Guilds[guildID].WallsCheckTimeout)
-                    if time.Now().After(lastCheckedPlusTimeout) {
-                        if config.Guilds[guildID].WallReminders == 0 {
-                            config.Guilds[guildID].WallReminders = 1
-
-                            reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, 
-                                fmt.Sprintf("It's time to check walls! Time last checked %s", config.Guilds[guildID].WallsLastChecked))
-                            config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
-                            config.Guilds[guildID].LastReminder = time.Now()
-                        } else {
-                            lastReminderPlusReminderInterval := config.Guilds[guildID].LastReminder.Add(config.Guilds[guildID].WallsCheckReminder)
-
-                            if time.Now().After(lastReminderPlusReminderInterval) {
-                                config.Guilds[guildID].WallReminders++
-                                durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].WallsLastChecked)
-                                msg := fmt.Sprintf("<@&%s>, reminder to check walls! They have still not been checked! It has been %s since the last check!", 
-                                    config.Guilds[guildID].WallsRoleMention, durationSinceLastChecked.Round(time.Second))
-                                reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, msg)
-                                clearReminderMessages(d, guildID)
-                                config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
-                                config.Guilds[guildID].WallsCheckReminder++
-                                config.Guilds[guildID].LastReminder = time.Now()
-                            }
-                        }
-
-                        ConfigHelper.SaveConfig(configFile, config)
-                    }
-                }
-            }
-
-            time.Sleep(config.TimerLoopTimeout)
-        }
-    }()
+    go doTimerChecks(d)
 
     <-make(chan struct{})
 }
+
+
+func doTimerChecks(d *discordgo.Session) {
+    for {
+        for guildID := range config.Guilds {
+            if config.Guilds[guildID].WallsEnabled {
+                lastCheckedPlusTimeout := config.Guilds[guildID].WallsLastChecked.Add(config.Guilds[guildID].WallsCheckTimeout)
+
+                if time.Now().After(lastCheckedPlusTimeout) {
+                    if config.Guilds[guildID].WallReminders == 0 {
+                        config.Guilds[guildID].WallReminders = 1
+
+                        reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, 
+                            fmt.Sprintf("It's time to check walls! Time last checked %s", config.Guilds[guildID].WallsLastChecked.Round(time.Second)))
+                        config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
+                        config.Guilds[guildID].LastReminder = time.Now()
+                    } else {
+                        lastReminderPlusReminderInterval := config.Guilds[guildID].LastReminder.Add(config.Guilds[guildID].WallsCheckReminder)
+
+                        if time.Now().After(lastReminderPlusReminderInterval) {
+                            config.Guilds[guildID].WallReminders++
+                            durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].WallsLastChecked)
+                            msg := fmt.Sprintf("<@&%s>, reminder to check walls! They have still not been checked! It has been %s since the last check!", 
+                                config.Guilds[guildID].WallsRoleMention, 
+                                durationSinceLastChecked.Round(time.Second))
+                            reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, msg)
+                            clearReminderMessages(d, guildID)
+                            config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
+                            config.Guilds[guildID].WallsCheckReminder++
+                            config.Guilds[guildID].LastReminder = time.Now()
+                        }
+                    }
+
+                    ConfigHelper.SaveConfig(configFile, config)
+                }
+            }
+        }
+
+        time.Sleep(config.TimerLoopTimeout)
+    }
+}
+
 
 // our command handler function
 func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
@@ -189,6 +196,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     }
 }
 
+// Settings command - set the various settings that make the bot operate on a particular guild.
 func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
 
@@ -271,28 +279,48 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
     }
 }
 
+// Help command - explains the different commands the bot offers. TODO: this.
 func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     sendTempMsg(d, channelID, "Help command handler! TODO: this handler!", 5*time.Second)
 }
 
+// Clear command handler - marks walls clear and thanks the wall checker.
 func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
     log.Debugf("Incoming clear message: %+v", msg.Message)
     checkGuild(d, channelID, msg.GuildID)
     checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
     
+    timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].WallsLastChecked).Round(time.Second)
+    playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck).Round(time.Second)
+
     config.Guilds[msg.GuildID].WallsLastChecked = time.Now()
     config.Guilds[msg.GuildID].WallReminders = 0
     config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks++
-
-    timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck)
     config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck = time.Now()
 
-    sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, 
-        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d. Time took: %s.",
+    /*sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, 
+        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d. Time to clear walls: %s. Time since your last wall check: %s",
             config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
             config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks,
-            timeTookSinceLastWallCheck.Round(time.Second)))
+            timeTookSinceLastWallCheck,
+            playerLastWallCheck))*/
+    
+    thankyouMessage := EmbedHelper.NewEmbed().
+        SetTitle("Walls clear!").
+        SetDescription(fmt.Sprintf(":white_check_mark: **%s** cleared the walls using command `%sclear`!",
+            config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention, 
+            config.CommandPrefix)).
+        AddField("Score", fmt.Sprintf("%d", config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks)).
+        AddField("Time taken to clear", fmt.Sprintf("%s", timeTookSinceLastWallCheck)).
+        AddField("Time since last check", fmt.Sprintf("%s", playerLastWallCheck)).
+        AddField("Time Checked", config.Guilds[msg.GuildID].WallsLastChecked.Format("Jan 2, 2006 at 3:04pm (MST)")).
+        SetFooter(fmt.Sprintf("Thank you, **%s**! You rock!",
+            config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerUsername), "https://i.imgur.com/cCNP4qR.png").
+        SetThumbnail("https://i.imgur.com/t7PERaX.jpg").
+        MessageEmbed
+
+    sendEmbed(d, config.Guilds[msg.GuildID].WallsCheckChannelID, thankyouMessage)
 
     go func() {
         clearReminderMessages(d, msg.GuildID)
@@ -301,6 +329,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
     ConfigHelper.SaveConfig(configFile, config)
 }
 
+// WEE WOO!!! handler. Sends an alert message indicating that a raid is in progress.
 func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
     log.Debugf("Incoming clear message: %+v", msg.Message)
@@ -372,6 +401,8 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
     }
 
     ConfigHelper.SaveConfig(configFile, config)
+
+    
 }
 
 func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string) {
@@ -400,7 +431,7 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
 }
 
 func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
-    embed := NewEmbed().
+    embed := EmbedHelper.NewEmbed().
         SetTitle("Walls settings").
         SetDescription("Current walls settings").
         AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
@@ -411,6 +442,11 @@ func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *disco
         AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
         AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
         MessageEmbed
+
+    sendEmbed(d, channelID, embed)
+}
+
+func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed) {
     _, err := d.ChannelMessageSendEmbed(channelID, embed)
 
     if err != nil {
@@ -506,261 +542,4 @@ func setupLogging(config *Config) {
 func remove(s []string, i int) []string {
     s[len(s)-1], s[i] = s[i], s[len(s)-1]
     return s[:len(s)-1]
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// from https://gist.github.com/Necroforger/8b0b70b1a69fa7828b8ad6387ebb3835
-
-//Embed ...
-type Embed struct {
-	*discordgo.MessageEmbed
-}
-
-// Constants for message embed character limits
-const (
-	EmbedLimitTitle       = 256
-	EmbedLimitDescription = 2048
-	EmbedLimitFieldValue  = 1024
-	EmbedLimitFieldName   = 256
-	EmbedLimitField       = 25
-	EmbedLimitFooter      = 2048
-	EmbedLimit            = 4000
-)
-
-//NewEmbed returns a new embed object
-func NewEmbed() *Embed {
-	return &Embed{&discordgo.MessageEmbed{}}
-}
-
-//SetTitle ...
-func (e *Embed) SetTitle(name string) *Embed {
-	e.Title = name
-	return e
-}
-
-//SetDescription [desc]
-func (e *Embed) SetDescription(description string) *Embed {
-	if len(description) > 2048 {
-		description = description[:2048]
-	}
-	e.Description = description
-	return e
-}
-
-//AddField [name] [value]
-func (e *Embed) AddField(name, value string) *Embed {
-	if len(value) > 1024 {
-		value = value[:1024]
-	}
-
-	if len(name) > 1024 {
-		name = name[:1024]
-	}
-
-	e.Fields = append(e.Fields, &discordgo.MessageEmbedField{
-		Name:  name,
-		Value: value,
-	})
-
-	return e
-
-}
-
-//SetFooter [Text] [iconURL]
-func (e *Embed) SetFooter(args ...string) *Embed {
-	iconURL := ""
-	text := ""
-	proxyURL := ""
-
-	switch {
-	case len(args) > 2:
-		proxyURL = args[2]
-		fallthrough
-	case len(args) > 1:
-		iconURL = args[1]
-		fallthrough
-	case len(args) > 0:
-		text = args[0]
-	case len(args) == 0:
-		return e
-	}
-
-	e.Footer = &discordgo.MessageEmbedFooter{
-		IconURL:      iconURL,
-		Text:         text,
-		ProxyIconURL: proxyURL,
-	}
-
-	return e
-}
-
-//SetImage ...
-func (e *Embed) SetImage(args ...string) *Embed {
-	var URL string
-	var proxyURL string
-
-	if len(args) == 0 {
-		return e
-	}
-	if len(args) > 0 {
-		URL = args[0]
-	}
-	if len(args) > 1 {
-		proxyURL = args[1]
-	}
-	e.Image = &discordgo.MessageEmbedImage{
-		URL:      URL,
-		ProxyURL: proxyURL,
-	}
-	return e
-}
-
-//SetThumbnail ...
-func (e *Embed) SetThumbnail(args ...string) *Embed {
-	var URL string
-	var proxyURL string
-
-	if len(args) == 0 {
-		return e
-	}
-	if len(args) > 0 {
-		URL = args[0]
-	}
-	if len(args) > 1 {
-		proxyURL = args[1]
-	}
-	e.Thumbnail = &discordgo.MessageEmbedThumbnail{
-		URL:      URL,
-		ProxyURL: proxyURL,
-	}
-	return e
-}
-
-//SetAuthor ...
-func (e *Embed) SetAuthor(args ...string) *Embed {
-	var (
-		name     string
-		iconURL  string
-		URL      string
-		proxyURL string
-	)
-
-	if len(args) == 0 {
-		return e
-	}
-	if len(args) > 0 {
-		name = args[0]
-	}
-	if len(args) > 1 {
-		iconURL = args[1]
-	}
-	if len(args) > 2 {
-		URL = args[2]
-	}
-	if len(args) > 3 {
-		proxyURL = args[3]
-	}
-
-	e.Author = &discordgo.MessageEmbedAuthor{
-		Name:         name,
-		IconURL:      iconURL,
-		URL:          URL,
-		ProxyIconURL: proxyURL,
-	}
-
-	return e
-}
-
-//SetURL ...
-func (e *Embed) SetURL(URL string) *Embed {
-	e.URL = URL
-	return e
-}
-
-//SetColor ...
-func (e *Embed) SetColor(clr int) *Embed {
-	e.Color = clr
-	return e
-}
-
-// InlineAllFields sets all fields in the embed to be inline
-func (e *Embed) InlineAllFields() *Embed {
-	for _, v := range e.Fields {
-		v.Inline = true
-	}
-	return e
-}
-
-// Truncate truncates any embed value over the character limit.
-func (e *Embed) Truncate() *Embed {
-	e.TruncateDescription()
-	e.TruncateFields()
-	e.TruncateFooter()
-	e.TruncateTitle()
-	return e
-}
-
-// TruncateFields truncates fields that are too long
-func (e *Embed) TruncateFields() *Embed {
-	if len(e.Fields) > 25 {
-		e.Fields = e.Fields[:EmbedLimitField]
-	}
-
-	for _, v := range e.Fields {
-
-		if len(v.Name) > EmbedLimitFieldName {
-			v.Name = v.Name[:EmbedLimitFieldName]
-		}
-
-		if len(v.Value) > EmbedLimitFieldValue {
-			v.Value = v.Value[:EmbedLimitFieldValue]
-		}
-
-	}
-	return e
-}
-
-// TruncateDescription ...
-func (e *Embed) TruncateDescription() *Embed {
-	if len(e.Description) > EmbedLimitDescription {
-		e.Description = e.Description[:EmbedLimitDescription]
-	}
-	return e
-}
-
-// TruncateTitle ...
-func (e *Embed) TruncateTitle() *Embed {
-	if len(e.Title) > EmbedLimitTitle {
-		e.Title = e.Title[:EmbedLimitTitle]
-	}
-	return e
-}
-
-// TruncateFooter ...
-func (e *Embed) TruncateFooter() *Embed {
-	if e.Footer != nil && len(e.Footer.Text) > EmbedLimitFooter {
-		e.Footer.Text = e.Footer.Text[:EmbedLimitFooter]
-	}
-	return e
 }
