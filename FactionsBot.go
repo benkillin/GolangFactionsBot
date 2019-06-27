@@ -326,13 +326,13 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
         CmdHelp {command: "clear", description:"Mark the walls as all good and clear - nobody is raiding or attacking."},
         CmdHelp {command: "weewoo", description:"Alert fellow faction members that we are getting raided and are under attack!"},
         CmdHelp {command: "help", description:"This help command menu."},
-        CmdHelp {command: "lennyface", description:"giggity"},
-        CmdHelp {command: "fliptable", description:"FLIP THE FREAKING TABLE"},
-        CmdHelp {command: "grr", description:"i am angry or disappointed with you"},
-        CmdHelp {command: "manyface", description:"there is nothing but lenny"},
-        CmdHelp {command: "finger", description:"f you, man"},
-        CmdHelp {command: "gimme", description:"gimme whatever"},
-        CmdHelp {command: "shrug", description:"shrug things off"}}
+        CmdHelp {command: "lennyface", description:"Emoji: giggity"},
+        CmdHelp {command: "fliptable", description:"Emoji: FLIP THE FREAKING TABLE"},
+        CmdHelp {command: "grr", description:"Emoji: i am angry or disappointed with you"},
+        CmdHelp {command: "manyface", description:"Emoji: there is nothing but lenny"},
+        CmdHelp {command: "finger", description:"Emoji: f you, man"},
+        CmdHelp {command: "gimme", description:"Emoji: gimme whatever"},
+        CmdHelp {command: "shrug", description:"Emoji: shrug things off"}}
 
     log.Infof("%#v", availableCommands)
 
