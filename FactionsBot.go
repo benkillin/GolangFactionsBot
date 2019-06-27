@@ -21,7 +21,6 @@ var (
 // Config represents the application's configuration
 type Config struct {
     Token string
-    CommandPrefix string
     TimerLoopTimeout time.Duration
     Logging LoggingConfig
     Guilds map[string]*GuildConfig
@@ -45,6 +44,7 @@ type GuildConfig struct {
     WallsCheckChannelID string
     WallsRoleMention string
     WallReminders int
+    CommandPrefix string
     ReminderMessages []string
     LastReminder time.Time
     Players map[string]*PlayerConfig
@@ -63,7 +63,6 @@ type PlayerConfig struct {
 func main() {
     defaultConfig := &Config{
         Token: "",
-        CommandPrefix: ".",
         TimerLoopTimeout: 5 * time.Second,
         Logging: LoggingConfig {
             Level: "trace",
@@ -78,6 +77,7 @@ func main() {
                 WallsCheckReminder: 30*time.Minute,
                 WallsCheckChannelID: "#123456789012345678",
                 WallsRoleMention: "@&123456789012345678",
+                CommandPrefix: ".",
                 Players: map[string]*PlayerConfig{
                     "123456789012345678": &PlayerConfig{
                         PlayerString: "Derp#1234",
@@ -177,22 +177,43 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     if user.ID == botID || user.Bot {
         return
     }
-
+    
+    checkGuild(d, msg.ChannelID, msg.GuildID)
     content := msg.Content
-
     splitContent := strings.Split(content, " ")
-
+    prefix := config.Guilds[msg.GuildID].CommandPrefix
     switch splitContent[0]{
-    case config.CommandPrefix + "test":
+    case prefix + "test":
         testCmd(d, msg.ChannelID, msg, splitContent)
-    case config.CommandPrefix + "set":
+    case prefix + "set":
         setCmd(d, msg.ChannelID, msg, splitContent)
-    case config.CommandPrefix + "clear":
+    case prefix + "clear":
         clearCmd(d, msg.ChannelID, msg, splitContent)
-    case config.CommandPrefix + "weewoo":
+    case prefix + "weewoo":
         weewooCmd(d, msg.ChannelID, msg, splitContent)
-    case config.CommandPrefix + "help":
+    case prefix + "help":
         helpCmd(d, msg.ChannelID, msg, splitContent)
+    case prefix + "lennyface":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "( ͡° ͜ʖ ͡°)")
+    case prefix + "fliptable":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "(╯ ͠° ͟ʖ ͡°)╯┻━┻")
+    case prefix + "grr":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "ಠ_ಠ")
+    case prefix + "manyface":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "( ͡°( ͡° ͜ʖ( ͡° ͜ʖ ͡°)ʖ ͡°) ͡°)")
+    case prefix + "finger":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "凸-_-凸")
+    case prefix + "gimme":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "ლ(´ڡ`ლ)")
+    case prefix + "shrug":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        sendMsg(d, msg.ChannelID, "¯\\_(ツ)_/¯")
     }
 }
 
@@ -241,7 +262,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                             changed = true
                         }
                     } else {
-                        sendTempMsg(d, channelID, "usage: " + config.CommandPrefix + "set walls channel #channelNameForWallChecks", 10*time.Second)
+                        sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set walls channel #channelNameForWallChecks", 10*time.Second)
                     }
 
                 case "role":
@@ -254,7 +275,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                             sendTempMsg(d, channelID, "Error - invalid/no role specified", 10*time.Second)
                         }
                     } else { 
-                        sendTempMsg(d, channelID, "usage: " + config.CommandPrefix + "set walls role @roleForWallCheckRemidners", 10*time.Second)
+                        sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set walls role @roleForWallCheckRemidners", 10*time.Second)
                     }
 
                 case "timeout":
@@ -273,6 +294,16 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
             } else {
                 sendCurrentWallsSettings(d, channelID, msg)
             }
+        case "prefix":
+            if len(splitMessage) > 2 {
+                prefix := splitMessage[2]
+                config.Guilds[msg.GuildID].CommandPrefix = prefix
+                ConfigHelper.SaveConfig(configFile, config)
+            } else {
+                sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set prefix {command prefix here. example: . or !! or ! or ¡ or ¿}", 10*time.Second)
+            }
+        default: 
+            helpCmd(d, channelID, msg, splitMessage)
         }
     } else {
         helpCmd(d, channelID, msg, splitMessage)
@@ -281,7 +312,35 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
 // Help command - explains the different commands the bot offers. TODO: this.
 func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-    sendTempMsg(d, channelID, "Help command handler! TODO: this handler!", 5*time.Second)
+    deleteMsg(d, msg.ChannelID, msg.ID)
+    sendTempMsg(d, channelID, "Help command handler! TODO: this handler! ( ͡° ͜ʖ ͡°)", 5*time.Second)
+
+    embed := EmbedHelper.NewEmbed().SetTitle("Available commands").SetDescription("Below are the available commands")
+    type CmdHelp struct {
+        command string
+        description string
+    }
+
+    availableCommands := []CmdHelp {CmdHelp {command: "test", description:"A test command."},
+        CmdHelp {command: "set", description:"Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},
+        CmdHelp {command: "clear", description:"Mark the walls as all good and clear - nobody is raiding or attacking."},
+        CmdHelp {command: "weewoo", description:"Alert fellow faction members that we are getting raided and are under attack!"},
+        CmdHelp {command: "help", description:"This help command menu."},
+        CmdHelp {command: "lennyface", description:"giggity"},
+        CmdHelp {command: "fliptable", description:"FLIP THE FREAKING TABLE"},
+        CmdHelp {command: "grr", description:"i am angry or disappointed with you"},
+        CmdHelp {command: "manyface", description:"there is nothing but lenny"},
+        CmdHelp {command: "finger", description:"f you, man"},
+        CmdHelp {command: "gimme", description:"gimme whatever"},
+        CmdHelp {command: "shrug", description:"shrug things off"}}
+
+    log.Infof("%#v", availableCommands)
+
+    for _, command := range availableCommands {
+        embed = embed.AddField(config.Guilds[msg.GuildID].CommandPrefix + command.command, command.description)
+    }
+
+    sendEmbed(d, channelID, embed.MessageEmbed)
 }
 
 // Clear command handler - marks walls clear and thanks the wall checker.
@@ -306,7 +365,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
         SetTitle("Walls clear!").
         SetDescription(fmt.Sprintf(":white_check_mark: **%s** cleared the walls using command `%sclear`!",
             config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention, 
-            config.CommandPrefix)).
+            config.Guilds[msg.GuildID].CommandPrefix)).
         AddField("Score", fmt.Sprintf("%d", config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks)).
         AddField("Time taken to clear", fmt.Sprintf("%s", timeTookSinceLastWallCheck)).
         AddField("Time since last check", fmt.Sprintf("%s", playerLastWallCheck)).
@@ -389,6 +448,7 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discor
             WallsEnabled: false,
             WallsRoleMention: "",
             WallReminders: 0,
+            CommandPrefix: ".",
             Players: players}
     } else {
         if guild.Name != config.Guilds[GuildID].GuildName {

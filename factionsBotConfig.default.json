@@ -1,6 +1,5 @@
 {
   "Token": "",
-  "CommandPrefix": ".",
   "TimerLoopTimeout": 5000000000,
   "Logging": {
     "Level": "trace",
@@ -18,6 +17,7 @@
       "WallsCheckChannelID": "#123456789012345678",
       "WallsRoleMention": "@\u0026123456789012345678",
       "WallReminders": 0,
+      "CommandPrefix": ".",
       "ReminderMessages": null,
       "LastReminder": "0001-01-01T00:00:00Z",
       "Players": {
