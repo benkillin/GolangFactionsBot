@@ -289,7 +289,10 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
     deleteMsg(d, msg.ChannelID, msg.ID)
     log.Debugf("Incoming clear message: %+v", msg.Message)
     checkGuild(d, channelID, msg.GuildID)
-    checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
+    player, err := checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
+    if err != nil {
+        return
+    }
     
     timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].WallsLastChecked).Round(time.Second)
     playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck).Round(time.Second)
@@ -298,13 +301,6 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
     config.Guilds[msg.GuildID].WallReminders = 0
     config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks++
     config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck = time.Now()
-
-    /*sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, 
-        fmt.Sprintf("Thanks, %s, the walls have been marked clear! Your current score is %d. Time to clear walls: %s. Time since your last wall check: %s",
-            config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
-            config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks,
-            timeTookSinceLastWallCheck,
-            playerLastWallCheck))*/
     
     thankyouMessage := EmbedHelper.NewEmbed().
         SetTitle("Walls clear!").
@@ -317,7 +313,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
         AddField("Time Checked", config.Guilds[msg.GuildID].WallsLastChecked.Format("Jan 2, 2006 at 3:04pm (MST)")).
         SetFooter(fmt.Sprintf("Thank you, **%s**! You rock!",
             config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerUsername), "https://i.imgur.com/cCNP4qR.png").
-        SetThumbnail("https://i.imgur.com/t7PERaX.jpg").
+        SetThumbnail(player.AvatarURL("4096")).
         MessageEmbed
 
     sendEmbed(d, config.Guilds[msg.GuildID].WallsCheckChannelID, thankyouMessage)
@@ -375,12 +371,12 @@ func testCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
 /*func Cmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
 }*/
 
-func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
+func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discordgo.Guild, error) {
     guild, err := d.Guild(GuildID)
     if err != nil {
         log.Errorf("Error obtaining guild: %s", err)
         sendMsg(d, channelID, fmt.Sprintf("Error obtaining guild: %s", err))
-        return
+        return nil, err
     }
 
     if _, ok := config.Guilds[GuildID]; !ok {
@@ -402,16 +398,16 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) {
 
     ConfigHelper.SaveConfig(configFile, config)
 
-    
+    return guild, nil
 }
 
-func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string) {
+func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string) (*discordgo.User, error) {
     checkGuild(d, channelID, GuildID)
     player, err := d.User(authorID)
     if err != nil {
         log.Errorf("Error obtaining user information: %s", err)
         sendMsg(d, channelID, fmt.Sprintf("Error obtaining user information: %s", err))
-        return
+        return nil, err
     }
 
     if _, ok := config.Guilds[GuildID].Players[player.ID]; !ok {
@@ -428,6 +424,8 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
             config.Guilds[GuildID].Players[authorID].PlayerMention = player.Mention()
         }
     }
+
+    return player, nil
 }
 
 func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
