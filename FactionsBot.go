@@ -313,7 +313,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 // Help command - explains the different commands the bot offers. TODO: this.
 func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
-    sendTempMsg(d, channelID, "Help command handler! TODO: this handler! ( ͡° ͜ʖ ͡°)", 5*time.Second)
 
     embed := EmbedHelper.NewEmbed().SetTitle("Available commands").SetDescription("Below are the available commands")
     type CmdHelp struct {
@@ -331,7 +330,7 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
         CmdHelp {command: "grr", description:"Emoji: i am angry or disappointed with you"},
         CmdHelp {command: "manyface", description:"Emoji: there is nothing but lenny"},
         CmdHelp {command: "finger", description:"Emoji: f you, man"},
-        CmdHelp {command: "gimme", description:"Emoji: gimme whatever"},
+        CmdHelp {command: "gimme", description:"Emoji: gimme gimme gimme gimme"},
         CmdHelp {command: "shrug", description:"Emoji: shrug things off"}}
 
     log.Infof("%#v", availableCommands)
