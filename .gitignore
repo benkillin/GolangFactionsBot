@@ -2,3 +2,5 @@ factionsBotConfig.json
 FactionsBot
 FactionsBot.termoutput.log
 GolangFactionsBot
+.gogradle
+vendor

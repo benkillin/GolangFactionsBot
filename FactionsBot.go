@@ -196,12 +196,16 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     case prefix + "lennyface":
         deleteMsg(d, msg.ChannelID, msg.ID)
         sendMsg(d, msg.ChannelID, "( ͡° ͜ʖ ͡°)")
+    case prefix + "tableflip":
+        fallthrough
     case prefix + "fliptable":
         deleteMsg(d, msg.ChannelID, msg.ID)
         sendMsg(d, msg.ChannelID, "(╯ ͠° ͟ʖ ͡°)╯┻━┻")
     case prefix + "grr":
         deleteMsg(d, msg.ChannelID, msg.ID)
         sendMsg(d, msg.ChannelID, "ಠ_ಠ")
+    case prefix + "manylenny":
+        fallthrough
     case prefix + "manyface":
         deleteMsg(d, msg.ChannelID, msg.ID)
         sendMsg(d, msg.ChannelID, "( ͡°( ͡° ͜ʖ( ͡° ͜ʖ ͡°)ʖ ͡°) ͡°)")
@@ -280,9 +284,11 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
                 case "timeout":
                     changed = true
+                    // TODO: this
 
                 case "reminder": 
                     changed = true
+                    // TODO: this
 
                 default:
                     sendCurrentWallsSettings(d, channelID, msg)
