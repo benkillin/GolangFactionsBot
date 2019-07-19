@@ -8,7 +8,7 @@ import (
     log "github.com/sirupsen/logrus"
     "time"
     "strings"
-    "github.com/benkillin/GolangFactionsBot/EmbedHelper"
+    "github.com/benkillin/GolangFactionsBot/src/EmbedHelper"
 )
 
 var (
