@@ -373,6 +373,13 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
     checkGuild(d, channelID, msg.GuildID)
     player, err := checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
     if err != nil {
+        log.Errorf("Unable to check the player. %s", err)
+        return
+    }
+    err = checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleMention)
+    if err != nil {
+        sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to mark walls clear, but does not have the correct role.", msg.Author.Mention()))
+        sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall checks."))
         return
     }
     
@@ -412,6 +419,12 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
     deleteMsg(d, msg.ChannelID, msg.ID)
     log.Debugf("Incoming WEEWOO! message: %+v", msg.Message)
     checkGuild(d, channelID, msg.GuildID)
+    err := checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleMention)
+    if err != nil {
+        sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to weewoo, but does not have the correct role.", msg.Author.Mention()))
+        sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall checks."))
+        return
+    }    
 
     sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
         fmt.Sprintf("WEEWOO!!! WEEWOO!!!! WE ARE BEING RAIDED!!!! PLEASE GET ON AND HELP DEFEND THE BASE!!!"))
@@ -509,6 +522,26 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
     }
 
     return player, nil
+}
+
+func checkRole(d *discordgo.Session, msg *discordgo.MessageCreate, requiredRole string) (error) {
+
+    member, err := d.GuildMember(msg.GuildID, msg.Author.ID)
+    if err != nil {
+        log.Errorf("Error obtaining user information: %s", err)
+        sendMsg(d, msg.ChannelID, fmt.Sprintf("Error obtaining user information: %s", err))
+        return err
+    }
+
+    for _, role := range member.Roles {
+        if role == requiredRole {
+            log.Debugf("User passed role check.")
+            return nil
+        }
+    }
+
+    log.Errorf("User %s <%s (%s)> does not have the correct role.", msg.Author.Username, member.Nick, msg.Author.Mention())
+    return fmt.Errorf("user %s (%s) does not have the necessary role %s", msg.Author.Mention(), msg.Author.ID, config.Guilds[msg.GuildID].WallsRoleMention)
 }
 
 func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
