@@ -83,8 +83,8 @@ var setCommands = []CmdHelp{CmdHelp {command:"set walls on", description:"Enable
     CmdHelp {command:"set walls off", description:"Disable wall checks."},
     CmdHelp {command: "set walls role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands."},
     CmdHelp {command: "set walls channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
-    CmdHelp {command: "set walls timeout (timeout)", description: "TODO: this command. Defaults to 45 minutes."},
-    CmdHelp {command: "set walls reminder (reminder)", description: "TODO: this command. Defaults to 30 minutes."},
+    CmdHelp {command: "set walls timeout (timeout)", description: "Sets timeout before asking for a wall check. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
+    CmdHelp {command: "set walls reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
     CmdHelp {command: "set prefix (prefix)", description: "Set the command prefix to the specified string. (Defaults to .)."}}
 
 // our main function
@@ -262,7 +262,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 // Settings command - set the various settings that make the bot operate on a particular guild.
 func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     if len(splitMessage) > 1 {
-        deleteMsg(d, msg.ChannelID, msg.ID)
+        //deleteMsg(d, msg.ChannelID, msg.ID)
         log.Debugf("Incoming settings message: %+v", msg.Message)
 
         checkGuild(d, channelID, msg.GuildID)
@@ -278,13 +278,13 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                 case "on":
                     config.Guilds[msg.GuildID].WallsEnabled = true
                     changed = true
-                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled!"), 5 * time.Second)
+                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled!"), 45 * time.Second)
 
                 case "off":
                     config.Guilds[msg.GuildID].WallsEnabled = false
                     changed = true
 
-                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled."), 5 * time.Second)
+                    sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled."), 45 * time.Second)
 
                 case "channel":
                     if len(splitMessage) > 3 {
@@ -320,12 +320,20 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                     }
 
                 case "timeout":
-                    changed = true
-                    // TODO: this
+                    if len(splitMessage) > 3 {
+                        changed = true
+                        checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration){
+                            config.Guilds[msg.GuildID].WallsCheckTimeout = userDuration}, d, channelID, msg)
+                    }
+                    sendCurrentWallsSettings(d, channelID, msg)
 
                 case "reminder": 
-                    changed = true
-                    // TODO: this
+                    if len(splitMessage) > 3 {
+                        changed = true
+                        checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration){
+                            config.Guilds[msg.GuildID].WallsCheckReminder = userDuration}, d, channelID, msg)
+                    }
+                    sendCurrentWallsSettings(d, channelID, msg)
 
                 default:
                     sendCurrentWallsSettings(d, channelID, msg)
@@ -350,6 +358,23 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
         }
     } else {
         helpCmd(d, channelID, msg, splitMessage, setCommands)
+    }
+}
+
+// support func for setting the walls timeout and reminder duration.
+func checkHourMinuteDuration(userInputDuration string, handler func(userDuration time.Duration), d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
+    if strings.HasSuffix(userInputDuration, "m") || strings.HasSuffix(userInputDuration, "h") {
+        userDuration, err := time.ParseDuration(userInputDuration)
+        if err != nil {
+            log.Errorf("User specified invalid duration.")
+            sendTempMsg(d, channelID, fmt.Sprintf("Error - invalid duration: %s", err), 30*time.Second)
+            return
+        }
+        handler(userDuration)
+    } else {
+        log.Errorf("User specified invalid suffix for time duration.")
+        sendTempMsg(d, channelID, "Error - invalid time units. You must specify 'm' or 'h'.", 30*time.Second)
+        return
     }
 }
 
