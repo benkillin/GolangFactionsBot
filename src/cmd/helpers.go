@@ -133,7 +133,7 @@ func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *disco
         AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
         MessageEmbed
 	
-	sendTempEmbed(d, channelID, embed, 5*time.Second)
+	sendTempEmbed(d, channelID, embed, 60*time.Second)
 }
 
 // helper func to send an embed message, aka a message that has a bunch of key value pairs and other things like images and stuff.
