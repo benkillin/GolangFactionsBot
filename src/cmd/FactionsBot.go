@@ -59,6 +59,34 @@ type PlayerConfig struct {
     LastWallCheck time.Time
 }
 
+// CmdHelp represents a key value pair of a command and a description of a command for constructing a help message embed.
+type CmdHelp struct {
+    command string
+    description string
+}
+
+var availableCommands = []CmdHelp {CmdHelp {command: "test", description:"A test command."},
+        CmdHelp {command: "set", description:"Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},
+        CmdHelp {command: "clear", description:"Mark the walls as all good and clear - nobody is raiding or attacking."},
+        CmdHelp {command: "weewoo", description:"Alert fellow faction members that we are getting raided and are under attack!"},
+        CmdHelp {command: "help", description:"This help command menu."},
+        CmdHelp {command: "invite", description:"Private message you the invite link for this bot to join a server you are an administrator of."},
+        CmdHelp {command: "lennyface", description:"Emoji: giggity"},
+        CmdHelp {command: "fliptable", description:"Emoji: FLIP THE FREAKING TABLE"},
+        CmdHelp {command: "grr", description:"Emoji: i am angry or disappointed with you"},
+        CmdHelp {command: "manyface", description:"Emoji: there is nothing but lenny"},
+        CmdHelp {command: "finger", description:"Emoji: f you, man"},
+        CmdHelp {command: "gimme", description:"Emoji: gimme gimme gimme gimme"},
+        CmdHelp {command: "shrug", description:"Emoji: shrug things off"}}
+
+var setCommands = []CmdHelp{CmdHelp {command:"set walls on", description:"Enable wall checks."},
+    CmdHelp {command:"set walls off", description:"Disable wall checks."},
+    CmdHelp {command: "set walls role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands."},
+    CmdHelp {command: "set walls channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
+    CmdHelp {command: "set walls timeout (timeout)", description: "TODO: this command. Defaults to 45 minutes."},
+    CmdHelp {command: "set walls reminder (reminder)", description: "TODO: this command. Defaults to 30 minutes."},
+    CmdHelp {command: "set prefix (prefix)", description: "Set the command prefix to the specified string. (Defaults to .)."}}
+
 // our main function
 func main() {
     defaultConfig := &Config{
@@ -193,7 +221,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     case prefix + "weewoo":
         weewooCmd(d, msg.ChannelID, msg, splitContent)
     case prefix + "help":
-        helpCmd(d, msg.ChannelID, msg, splitContent)
+        helpCmd(d, msg.ChannelID, msg, splitContent, availableCommands)
     case prefix + "invite":
         deleteMsg(d, msg.ChannelID, msg.ID)
         ch, err := d.UserChannelCreate(msg.Author.ID)
@@ -234,9 +262,8 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 
 // Settings command - set the various settings that make the bot operate on a particular guild.
 func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-    deleteMsg(d, msg.ChannelID, msg.ID)
-
     if len(splitMessage) > 1 {
+        deleteMsg(d, msg.ChannelID, msg.ID)
         log.Debugf("Incoming settings message: %+v", msg.Message)
 
         checkGuild(d, channelID, msg.GuildID)
@@ -320,40 +347,21 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                 sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set prefix {command prefix here. example: . or !! or ! or ¡ or ¿}", 10*time.Second)
             }
         default: 
-            helpCmd(d, channelID, msg, splitMessage)
+            helpCmd(d, channelID, msg, splitMessage, setCommands)
         }
     } else {
-        helpCmd(d, channelID, msg, splitMessage)
+        // TODO: provide settings help here.
+        helpCmd(d, channelID, msg, splitMessage, setCommands)
     }
 }
 
 // Help command - explains the different commands the bot offers.
-func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
+func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, commands []CmdHelp) {
     deleteMsg(d, msg.ChannelID, msg.ID)
 
     embed := EmbedHelper.NewEmbed().SetTitle("Available commands").SetDescription("Below are the available commands")
-    type CmdHelp struct {
-        command string
-        description string
-    }
 
-    availableCommands := []CmdHelp {CmdHelp {command: "test", description:"A test command."},
-        CmdHelp {command: "set", description:"Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},
-        CmdHelp {command: "clear", description:"Mark the walls as all good and clear - nobody is raiding or attacking."},
-        CmdHelp {command: "weewoo", description:"Alert fellow faction members that we are getting raided and are under attack!"},
-        CmdHelp {command: "help", description:"This help command menu."},
-        CmdHelp {command: "invite", description:"Private message you the invite link for this bot to join a server you are an administrator of."},
-        CmdHelp {command: "lennyface", description:"Emoji: giggity"},
-        CmdHelp {command: "fliptable", description:"Emoji: FLIP THE FREAKING TABLE"},
-        CmdHelp {command: "grr", description:"Emoji: i am angry or disappointed with you"},
-        CmdHelp {command: "manyface", description:"Emoji: there is nothing but lenny"},
-        CmdHelp {command: "finger", description:"Emoji: f you, man"},
-        CmdHelp {command: "gimme", description:"Emoji: gimme gimme gimme gimme"},
-        CmdHelp {command: "shrug", description:"Emoji: shrug things off"}}
-
-    log.Infof("%#v", availableCommands)
-
-    for _, command := range availableCommands {
+    for _, command := range commands {
         embed = embed.AddField(config.Guilds[msg.GuildID].CommandPrefix + command.command, command.description)
     }
 
