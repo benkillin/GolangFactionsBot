@@ -132,18 +132,8 @@ func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *disco
         AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
         AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
         MessageEmbed
-
-    sentMsg, err := sendEmbed(d, channelID, embed)
-    if err != nil {
-        log.Errorf("Error sending current walls settings: %s", err)
-    }
-
-    log.Debugf("%#v", sentMsg)
-
-    go func() {
-        time.Sleep(30*time.Second)
-        deleteMsg(d, channelID, sentMsg.ID)
-    }()
+	
+	sendTempEmbed(d, channelID, embed, 5*time.Second)
 }
 
 // helper func to send an embed message, aka a message that has a bunch of key value pairs and other things like images and stuff.
@@ -151,9 +141,26 @@ func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageE
     msg, err := d.ChannelMessageSendEmbed(channelID, embed)
 
     if err != nil {
-        log.Errorf("Error sending message1: %s", err)
+        log.Errorf("Error sending embed message: %s", err)
         return nil, err
     }
+
+    return msg, nil
+}
+
+// sends an embed message and waits the specified duration in a separate goroutine prior to deleting the message.
+func sendTempEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed, duration time.Duration) (*discordgo.Message, error) {
+	msg, err := d.ChannelMessageSendEmbed(channelID, embed)
+
+    if err != nil {
+        log.Errorf("Error sending temp embed message: %s", err)
+        return nil, err
+	}
+	
+	go func() {
+        time.Sleep(duration)
+        deleteMsg(d, channelID, msg.ID)
+    }()
 
     return msg, nil
 }
