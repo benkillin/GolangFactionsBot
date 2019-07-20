@@ -1,9 +1,29 @@
 
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'org.paleozogt:symzip-plugin:0.9.4'
+    }
+}
+
 plugins {
-    id 'com.github.blindpirate.gogradle' version '0.11.4'
+    id 'base'
 }
 
-golang {
-    packagePath = 'github.com/benkillin/GolangFactionsBot'
+apply plugin: 'base'
+apply plugin: "org.paleozogt.symzip"
+
+dependencies {}
+
+repositories {}
+
+import org.paleozogt.gradle.zip.*;
+
+task dockerBuild(type: Run) {
+    doLast {
+        run {}
+    }
 }
 
+assemble.dependsOn dockerBuild
