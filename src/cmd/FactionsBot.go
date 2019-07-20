@@ -173,8 +173,9 @@ func doTimerChecks(d *discordgo.Session) {
 
 // our command handler function
 func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
+    //log.Debugf("'%s' '%s' '%s' '%#v", botID, msg.GuildID, msg.Type, msg)
     user := msg.Author
-    if user.ID == botID || user.Bot {
+    if user.ID == botID || user.Bot || msg.GuildID == "" {
         return
     }
     
@@ -193,6 +194,16 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
         weewooCmd(d, msg.ChannelID, msg, splitContent)
     case prefix + "help":
         helpCmd(d, msg.ChannelID, msg, splitContent)
+    case prefix + "invite":
+        deleteMsg(d, msg.ChannelID, msg.ID)
+        ch, err := d.UserChannelCreate(msg.Author.ID)
+        if err != nil {
+            errmsg := fmt.Sprintf("Error creating user channel for private message with invite link: %s", err)
+            log.Error(errmsg)
+            sendTempMsg(d, msg.ChannelID, errmsg, 30*time.Second)
+            break
+        }
+        sendMsg(d, ch.ID, fmt.Sprintf("Here is a link to invite this bot to your own server: https://discordapp.com/api/oauth2/authorize?client_id=%s&permissions=8&scope=bot", botID))
     case prefix + "lennyface":
         deleteMsg(d, msg.ChannelID, msg.ID)
         sendMsg(d, msg.ChannelID, "( ͡° ͜ʖ ͡°)")
@@ -316,7 +327,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
     }
 }
 
-// Help command - explains the different commands the bot offers. TODO: this.
+// Help command - explains the different commands the bot offers.
 func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
 
@@ -331,6 +342,7 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
         CmdHelp {command: "clear", description:"Mark the walls as all good and clear - nobody is raiding or attacking."},
         CmdHelp {command: "weewoo", description:"Alert fellow faction members that we are getting raided and are under attack!"},
         CmdHelp {command: "help", description:"This help command menu."},
+        CmdHelp {command: "invite", description:"Private message you the invite link for this bot to join a server you are an administrator of."},
         CmdHelp {command: "lennyface", description:"Emoji: giggity"},
         CmdHelp {command: "fliptable", description:"Emoji: FLIP THE FREAKING TABLE"},
         CmdHelp {command: "grr", description:"Emoji: i am angry or disappointed with you"},
@@ -392,7 +404,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
 // WEE WOO!!! handler. Sends an alert message indicating that a raid is in progress.
 func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     deleteMsg(d, msg.ChannelID, msg.ID)
-    log.Debugf("Incoming clear message: %+v", msg.Message)
+    log.Debugf("Incoming WEEWOO! message: %+v", msg.Message)
     checkGuild(d, channelID, msg.GuildID)
 
     sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
