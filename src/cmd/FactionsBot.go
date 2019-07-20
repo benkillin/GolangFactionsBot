@@ -201,7 +201,6 @@ func doTimerChecks(d *discordgo.Session) {
 
 // our command handler function
 func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
-    //log.Debugf("'%s' '%s' '%s' '%#v", botID, msg.GuildID, msg.Type, msg)
     user := msg.Author
     if user.ID == botID || user.Bot || msg.GuildID == "" {
         return
@@ -350,7 +349,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
             helpCmd(d, channelID, msg, splitMessage, setCommands)
         }
     } else {
-        // TODO: provide settings help here.
         helpCmd(d, channelID, msg, splitMessage, setCommands)
     }
 }
