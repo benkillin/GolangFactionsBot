@@ -16,6 +16,7 @@
       "WallsLastChecked": "0001-01-01T00:00:00Z",
       "WallsCheckChannelID": "#123456789012345678",
       "WallsRoleMention": "@\u0026123456789012345678",
+      "WallsRoleAdmin": "",
       "WallReminders": 0,
       "CommandPrefix": ".",
       "ReminderMessages": null,

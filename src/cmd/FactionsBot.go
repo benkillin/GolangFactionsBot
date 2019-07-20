@@ -43,6 +43,7 @@ type GuildConfig struct {
     WallsLastChecked time.Time
     WallsCheckChannelID string
     WallsRoleMention string
+    WallsRoleAdmin string
     WallReminders int
     CommandPrefix string
     ReminderMessages []string
@@ -81,7 +82,8 @@ var availableCommands = []CmdHelp {CmdHelp {command: "test", description:"A test
 
 var setCommands = []CmdHelp{CmdHelp {command:"set walls on", description:"Enable wall checks."},
     CmdHelp {command:"set walls off", description:"Disable wall checks."},
-    CmdHelp {command: "set walls role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands."},
+    CmdHelp {command: "set walls role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
+    CmdHelp {command: "set walls admin (role)", description: "The role to require to update bot settings on this server (Server administrators always allowed)."},
     CmdHelp {command: "set walls channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
     CmdHelp {command: "set walls timeout (timeout)", description: "Sets timeout before asking for a wall check. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
     CmdHelp {command: "set walls reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
@@ -259,13 +261,19 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
     }
 }
 
-// Settings command - set the various settings that make the bot operate on a particular guild.
+// Settings command - set the various settings that make the bot operate on a particular guild aka server.
 func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
     if len(splitMessage) > 1 {
-        //deleteMsg(d, msg.ChannelID, msg.ID)
+        //deleteMsg(d, msg.ChannelID, msg.ID) // let's not delete settings commands in case someone does something nefarious.
         log.Debugf("Incoming settings message: %+v", msg.Message)
 
         checkGuild(d, channelID, msg.GuildID)
+        err := checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleAdmin)
+        if err != nil {
+            sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to update bot settings, but does not have the correct role.", msg.Author.Mention()))
+            sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall settings."))
+            return
+        }
 
         subcommand := splitMessage[1]
 
@@ -283,7 +291,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                 case "off":
                     config.Guilds[msg.GuildID].WallsEnabled = false
                     changed = true
-
                     sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled."), 45 * time.Second)
 
                 case "channel":
@@ -319,13 +326,31 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                         sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set walls role @roleForWallCheckRemidners", 10*time.Second)
                     }
 
+                case "admin":
+                    isAdmin, err := MemberHasPermission(d, msg.GuildID, msg.Author.ID, discordgo.PermissionAdministrator)
+                    if err != nil {
+                        log.Debugf("Unable to determine if user is admin: %s", err)
+                        sendTempMsg(d, channelID, fmt.Sprintf("Error: Unable to determine user permissions: %s", err), 45*time.Second)
+                    }
+
+                    if isAdmin {
+                        if len(msg.MentionRoles) > 0 {
+                            admin := msg.MentionRoles[0]
+                            config.Guilds[msg.GuildID].WallsRoleAdmin = admin
+                            changed = true
+                        } else {
+                            sendTempMsg(d, channelID, "Error - invalid/no role specified", 60*time.Second)
+                        }
+                    } else {
+                        sendMsg(d, channelID, "Error - only server/guild administrators may change this setting.")
+                    }
+
                 case "timeout":
                     if len(splitMessage) > 3 {
                         changed = true
                         checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration){
                             config.Guilds[msg.GuildID].WallsCheckTimeout = userDuration}, d, channelID, msg)
                     }
-                    sendCurrentWallsSettings(d, channelID, msg)
 
                 case "reminder": 
                     if len(splitMessage) > 3 {
@@ -333,7 +358,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                         checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration){
                             config.Guilds[msg.GuildID].WallsCheckReminder = userDuration}, d, channelID, msg)
                     }
-                    sendCurrentWallsSettings(d, channelID, msg)
 
                 default:
                     sendCurrentWallsSettings(d, channelID, msg)
@@ -341,6 +365,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
                 if changed {
                     ConfigHelper.SaveConfig(configFile, config)
+                    sendCurrentWallsSettings(d, channelID, msg)
                 }
             } else {
                 sendCurrentWallsSettings(d, channelID, msg)
@@ -358,23 +383,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
         }
     } else {
         helpCmd(d, channelID, msg, splitMessage, setCommands)
-    }
-}
-
-// support func for setting the walls timeout and reminder duration.
-func checkHourMinuteDuration(userInputDuration string, handler func(userDuration time.Duration), d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
-    if strings.HasSuffix(userInputDuration, "m") || strings.HasSuffix(userInputDuration, "h") {
-        userDuration, err := time.ParseDuration(userInputDuration)
-        if err != nil {
-            log.Errorf("User specified invalid duration.")
-            sendTempMsg(d, channelID, fmt.Sprintf("Error - invalid duration: %s", err), 30*time.Second)
-            return
-        }
-        handler(userDuration)
-    } else {
-        log.Errorf("User specified invalid suffix for time duration.")
-        sendTempMsg(d, channelID, "Error - invalid time units. You must specify 'm' or 'h'.", 30*time.Second)
-        return
     }
 }
 
@@ -488,9 +496,6 @@ func testCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
     }
 }
 
-/*func Cmd(d *discordgo.Session, msg *discordgo.MessageCreate, channelID string) {
-}*/
-
 func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discordgo.Guild, error) {
     guild, err := d.Guild(GuildID)
     if err != nil {
@@ -549,8 +554,8 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
     return player, nil
 }
 
+// check to see if the user is in the specified role, or is an administrator.
 func checkRole(d *discordgo.Session, msg *discordgo.MessageCreate, requiredRole string) (error) {
-
     member, err := d.GuildMember(msg.GuildID, msg.Author.ID)
     if err != nil {
         log.Errorf("Error obtaining user information: %s", err)
@@ -565,10 +570,39 @@ func checkRole(d *discordgo.Session, msg *discordgo.MessageCreate, requiredRole 
         }
     }
 
+    isAdmin, err := MemberHasPermission(d, msg.GuildID, msg.Author.ID, discordgo.PermissionAdministrator)
+    if err != nil {
+        log.Debugf("Unable to determine if user is admin: %s", err)
+        return err
+    }
+
+    if isAdmin {
+        log.Debugf("User passed role check (user is administrator).")
+        return nil
+    }
+
     log.Errorf("User %s <%s (%s)> does not have the correct role.", msg.Author.Username, member.Nick, msg.Author.Mention())
     return fmt.Errorf("user %s (%s) does not have the necessary role %s", msg.Author.Mention(), msg.Author.ID, config.Guilds[msg.GuildID].WallsRoleMention)
 }
 
+// support func for setting the walls timeout and reminder duration.
+func checkHourMinuteDuration(userInputDuration string, handler func(userDuration time.Duration), d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
+    if strings.HasSuffix(userInputDuration, "m") || strings.HasSuffix(userInputDuration, "h") {
+        userDuration, err := time.ParseDuration(userInputDuration)
+        if err != nil {
+            log.Errorf("User specified invalid duration.")
+            sendTempMsg(d, channelID, fmt.Sprintf("Error - invalid duration: %s", err), 30*time.Second)
+            return
+        }
+        handler(userDuration)
+    } else {
+        log.Errorf("User specified invalid suffix for time duration.")
+        sendTempMsg(d, channelID, "Error - invalid time units. You must specify 'm' or 'h'.", 30*time.Second)
+        return
+    }
+}
+
+// send the current walls settings to the specified channel.
 func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
     embed := EmbedHelper.NewEmbed().
         SetTitle("Walls settings").
@@ -576,23 +610,39 @@ func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *disco
         AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
         AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
         AddField("Role to mention", "<@&" + config.Guilds[msg.GuildID].WallsRoleMention + ">").
+        AddField("Bot admin role", "<@&" + config.Guilds[msg.GuildID].WallsRoleAdmin + ">").
         AddField("Check channel", "<#" + config.Guilds[msg.GuildID].WallsCheckChannelID + ">").
         AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
         AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
         AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
         MessageEmbed
 
-    sendEmbed(d, channelID, embed)
+    sentMsg, err := sendEmbed(d, channelID, embed)
+    if err != nil {
+        log.Errorf("Error sending current walls settings: %s", err)
+    }
+
+    log.Debugf("%#v", sentMsg)
+
+    go func() {
+        time.Sleep(30*time.Second)
+        deleteMsg(d, channelID, sentMsg.ID)
+    }()
 }
 
-func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed) {
-    _, err := d.ChannelMessageSendEmbed(channelID, embed)
+// helper func to send an embed message, aka a message that has a bunch of key value pairs and other things like images and stuff.
+func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed) (*discordgo.Message, error) {
+    msg, err := d.ChannelMessageSendEmbed(channelID, embed)
 
     if err != nil {
         log.Errorf("Error sending message1: %s", err)
+        return nil, err
     }
+
+    return msg, nil
 }
 
+// clear the reminder messages that the bot has sent out for wall checks. 
 func clearReminderMessages(d *discordgo.Session, GuildID string) {
     for i := 0; i < len(config.Guilds[GuildID].ReminderMessages); i++ {
         messageID := config.Guilds[GuildID].ReminderMessages[i]
@@ -603,6 +653,7 @@ func clearReminderMessages(d *discordgo.Session, GuildID string) {
     ConfigHelper.SaveConfig(configFile, config)
 }
 
+// test func for the unit tests - can be removed if we can figure out how to do unit testing with the discord api mocked somehow.
 func hello() (string) {
 	return "Hello, world!"
 }
@@ -670,7 +721,7 @@ func setupLogging(config *Config) {
 
         log.SetOutput(file)
     } else if config.Logging.Output == "stdout" {
-        log.SetOutput(os.Stdout) // bydefault the package outputs to stderr
+        log.SetOutput(os.Stdout) // by default the package outputs to stderr
     } else if config.Logging.Output == "stderr" {
         // do nothing
     } else {
@@ -678,7 +729,43 @@ func setupLogging(config *Config) {
     }
 }
 
+// remove an element from a string array.
 func remove(s []string, i int) []string {
     s[len(s)-1], s[i] = s[i], s[len(s)-1]
     return s[:len(s)-1]
+}
+
+// MemberHasPermission checks if a member has the given permission
+// for example, If you would like to check if user has the administrator
+// permission you would use
+// --- MemberHasPermission(s, guildID, userID, discordgo.PermissionAdministrator)
+// If you want to check for multiple permissions you would use the bitwise OR
+// operator to pack more bits in. (e.g): PermissionAdministrator|PermissionAddReactions
+// =================================================================================
+//     s          :  discordgo session
+//     guildID    :  guildID of the member you wish to check the roles of
+//     userID     :  userID of the member you wish to retrieve
+//     permission :  the permission you wish to check for
+// from https://github.com/bwmarrin/discordgo/wiki/FAQ#permissions-and-roles
+func MemberHasPermission(s *discordgo.Session, guildID string, userID string, permission int) (bool, error) {
+	member, err := s.State.Member(guildID, userID)
+	if err != nil {
+		if member, err = s.GuildMember(guildID, userID); err != nil {
+			return false, err
+		}
+	}
+
+    // Iterate through the role IDs stored in member.Roles
+    // to check permissions
+	for _, roleID := range member.Roles {
+		role, err := s.State.Role(guildID, roleID)
+		if err != nil {
+			return false, err
+		}
+		if role.Permissions&permission != 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
