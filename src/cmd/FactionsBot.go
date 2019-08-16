@@ -387,7 +387,7 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
         sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to weewoo, but does not have the correct role.", msg.Author.Mention()))
         sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall checks."))
         return
-    }    
+    }
 
     sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
         fmt.Sprintf("WEEWOO!!! WEEWOO!!!! WE ARE BEING RAIDED!!!! PLEASE GET ON AND HELP DEFEND THE BASE!!!"))

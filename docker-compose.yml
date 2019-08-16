@@ -1,0 +1,8 @@
+version: "2"
+
+services:
+  factionsBotDiscord:
+    image: factionsbot
+    volumes:
+      - ./factionsBotConfig.json:/opt/FactionsBot/bin/factionsBotConfig.json
+
