@@ -1,8 +1,15 @@
 version: "2"
 
+version: "3.0"
+
 services:
   factionsBotDiscord:
+    build: .
     image: factionsbot
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
     volumes:
-      - ./factionsBotConfig.json:/opt/FactionsBot/bin/factionsBotConfig.json
+      - ${PWD}/factionsBotConfig.json:/opt/FactionsBot/bin/factionsBotConfig.json
 
