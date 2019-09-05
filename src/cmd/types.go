@@ -88,19 +88,20 @@ var availableCommands = []CmdHelp {
 }
 
 var setCommands = []CmdHelp{
-    CmdHelp {command: "set admin (role)", description: "The role to require to update bot settings on this server (Server administrators always allowed)."},
+    CmdHelp {command: "set admin (role)", description: "The role to require to update bot settings on this server (Server administrators always allowed). [admin only]"},
+    CmdHelp {command: "set adminChannel (channel)", description: "The channel to put admin related notifications into (such as if someone attempted an operation they are not permitted with the bot). [admin only]"},
     CmdHelp {command: "set prefix (prefix)", description: "Set the command prefix to the specified string. (Defaults to .)."},
     CmdHelp {command: "set addReminder {reminderID}", description:"Add a new reminder type (such as walls, buffers, etc...)."},
 
-    CmdHelp {command: "set {reminderID} reminderName (name)", description:"Set the reminder name of the specified reminder type."},
-    CmdHelp {command: "set {reminderID} weewooMsg (message)", description:"Set the message to send if the weewoo command is used."},
-    CmdHelp {command: "set {reminderID} weewoo on", description:"Allow weewoos for this reminder type."},
-    CmdHelp {command: "set {reminderID} weewoo of", description:"Disable weewoos for this reminder type."},
-    CmdHelp {command: "set {reminderID} on", description:"Enable checks for specified reminder type."},
-    CmdHelp {command: "set {reminderID} off", description:"Disable checks for specified reminder type."},
-    CmdHelp {command: "set {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
-    CmdHelp {command: "set {reminderID} channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
-    CmdHelp {command: "set {reminderID} timeout (timeout)", description: "Sets timeout before asking for a wall check. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
-    CmdHelp {command: "set {reminderID} reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
+    CmdHelp {command: "set reminder {reminderID} reminderName (name)", description:"Set the reminder name of the specified reminder type."},
+    CmdHelp {command: "set reminder {reminderID} weewooMsg (message)", description:"Set the message to send if the weewoo command is used."},
+    CmdHelp {command: "set reminder {reminderID} weewoo on", description:"Allow weewoos for this reminder type."},
+    CmdHelp {command: "set reminder {reminderID} weewoo of", description:"Disable weewoos for this reminder type."},
+    CmdHelp {command: "set reminder {reminderID} on", description:"Enable checks for specified reminder type."},
+    CmdHelp {command: "set reminder {reminderID} off", description:"Disable checks for specified reminder type."},
+    CmdHelp {command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
+    CmdHelp {command: "set reminder {reminderID} channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
+    CmdHelp {command: "set reminder {reminderID} timeout (timeout)", description: "Sets timeout before asking for a wall check. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
+    CmdHelp {command: "set reminder {reminderID} reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
     
 }

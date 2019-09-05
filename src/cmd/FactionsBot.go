@@ -293,25 +293,6 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                         sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set walls role @roleForWallCheckRemidners", 10*time.Second)
                     }
 
-                case "admin":
-                    isAdmin, err := MemberHasPermission(d, msg.GuildID, msg.Author.ID, discordgo.PermissionAdministrator)
-                    if err != nil {
-                        log.Debugf("Unable to determine if user is admin: %s", err)
-                        sendTempMsg(d, channelID, fmt.Sprintf("Error: Unable to determine user permissions: %s", err), 45*time.Second)
-                    }
-
-                    if isAdmin {
-                        if len(msg.MentionRoles) > 0 {
-                            admin := msg.MentionRoles[0]
-                            config.Guilds[msg.GuildID].BotRoleAdmin = admin
-                            changed = true
-                        } else {
-                            sendTempMsg(d, channelID, "Error - invalid/no role specified", 60*time.Second)
-                        }
-                    } else {
-                        sendMsg(d, channelID, "Error - only server/guild administrators may change this setting.")
-                    }
-
                 case "timeout":
                     if len(splitMessage) > 3 {
                         changed = true
@@ -346,12 +327,71 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
             } else {
                 sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set prefix {command prefix here. example: . or !! or ! or ¡ or ¿}", 10*time.Second)
             }
+
+        case "admin":
+            isAdmin, err := MemberHasPermission(d, msg.GuildID, msg.Author.ID, discordgo.PermissionAdministrator)
+            if err != nil {
+                log.Debugf("Unable to determine if user is admin: %s", err)
+                sendTempMsg(d, channelID, fmt.Sprintf("Error: Unable to determine user permissions: %s", err), 45*time.Second)
+            }
+
+            if isAdmin {
+                if len(msg.MentionRoles) > 0 {
+                    admin := msg.MentionRoles[0]
+                    config.Guilds[msg.GuildID].BotRoleAdmin = admin
+                    ConfigHelper.SaveConfig(configFile, config)
+                } else {
+                    sendTempMsg(d, channelID, "Error - invalid/no role specified", 60*time.Second)
+                }
+            } else {
+                sendMsg(d, channelID, "Error - only server/guild administrators may change this setting.")
+            }
+
+        case "adminChannel":
+            isAdmin, err := MemberHasPermission(d, msg.GuildID, msg.Author.ID, discordgo.PermissionAdministrator)
+            if err != nil {
+                log.Debugf("Unable to determine if user is admin: %s", err)
+                sendTempMsg(d, channelID, fmt.Sprintf("Error: Unable to determine user permissions: %s", err), 45*time.Second)
+            }
+
+            if isAdmin {
+                if len(splitMessage) > 2 {
+                    adminChannel, err := extractChannel(d, splitMessage[2])
+                    if err != nil {
+                        log.Errorf("Invalid channel specified while setting bot admin channel: %s", err)
+                        sendTempMsg(d, channelID, fmt.Sprintf("Invalid channel specified: %s", err), 10*time.Second)
+                    } else {
+                        config.Guilds[msg.GuildID].BotAdminChannel = adminChannel.ID
+                        sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send bot admin messages to <#%s>", adminChannel.ID), 5*time.Second)
+                        ConfigHelper.SaveConfig(configFile, config)
+                    }
+                } else {
+                    sendTempMsg(d, channelID, "usage: " + config.Guilds[msg.GuildID].CommandPrefix + "set adminChannel #channelNameForWallChecks", 10*time.Second)
+                }
+            } else {
+                sendMsg(d, channelID, "Error - only server/guild administrators may change this setting.")
+            }
+        case "addReminder":
+            // TODO: handle adding a new reminder type.
         default: 
             helpCmd(d, channelID, msg, splitMessage, setCommands)
         }
     } else {
         helpCmd(d, channelID, msg, splitMessage, setCommands)
     }
+}
+
+func extractChannel(d *discordgo.Session, input string) (*discordgo.Channel, error) {
+    channelID := strings.Replace(input, "<", "", -1)
+    channelID = strings.Replace(channelID, ">", "", -1)
+    channelID = strings.Replace(channelID, "#", "", -1)
+
+    channel, err := d.Channel(channelID)
+    if err != nil {
+        return nil, err
+    }
+
+    return channel, nil
 }
 
 // Help command - explains the different commands the bot offers.
