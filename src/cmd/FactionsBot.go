@@ -31,19 +31,55 @@ func main() {
         Guilds: map[string]*GuildConfig{
             "123456789012345678": &GuildConfig{
                 GuildName: "DerpGuild",
-                WallsEnabled: false,
-                WallsCheckTimeout: 45*time.Minute,
-                WallsCheckReminder: 30*time.Minute,
-                WallsCheckChannelID: "#123456789012345678",
-                WallsRoleMention: "@&123456789012345678",
                 CommandPrefix: ".",
+                BotRoleAdmin: "523075010089189378",
+                
+                Reminders: map[string]*ReminderConfig{
+                    "walls": &ReminderConfig{
+                        ReminderName: "walls",
+                        Enabled: true,
+                        CheckTimeout: 45*time.Minute,
+                        CheckReminder: 30*time.Minute,
+                        LastChecked: time.Now(),
+                        CheckChannelID: "523136929995161611",
+                        RoleMention: "523130951644217363",
+                        Reminders: 0,
+                        LastReminder: time.Now(),
+                },
+                    "buffers": &ReminderConfig{
+                        ReminderName: "buffers",
+                        Enabled: true,
+                        CheckTimeout: 45*time.Minute,
+                        CheckReminder: 30*time.Minute,
+                        LastChecked: time.Now(),
+                        CheckChannelID: "523136929995161611",
+                        RoleMention: "523130951644217363",
+                        Reminders: 0,
+                        LastReminder: time.Now(),
+                    },
+                },
                 Players: map[string]*PlayerConfig{
                     "123456789012345678": &PlayerConfig{
                         PlayerString: "Derp#1234",
                         PlayerUsername: "asdfasdfasdf",
                         PlayerMention: "@123456789012345678",
-                        WallChecks: 0,
-                        LastWallCheck: time.Time{}}}}}} // the default config
+                        ReminderStats: map[string]*PlayerReminderStats{
+                            "walls": &PlayerReminderStats{
+                                Weewoos: 0,
+                                Checks: 0,
+                                LastCheck: time.Now(),
+                            },
+                            "buffers": &PlayerReminderStats{
+                                Weewoos: 0,
+                                Checks: 0,
+                                LastCheck: time.Now(),
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    } // the default config
     config = &Config{} // the running configuration
 
     // This is debug code basically to keep the default json file updated which is checked into git.
@@ -92,38 +128,40 @@ func main() {
 func doTimerChecks(d *discordgo.Session) {
     for {
         for guildID := range config.Guilds {
-            if config.Guilds[guildID].WallsEnabled {
-                lastCheckedPlusTimeout := config.Guilds[guildID].WallsLastChecked.Add(config.Guilds[guildID].WallsCheckTimeout)
+            for reminderID := range config.Guilds[guildID].Reminders {
+                if config.Guilds[guildID].Reminders[reminderID].Enabled {
+                    lastCheckedPlusTimeout := config.Guilds[guildID].Reminders[reminderID].LastChecked.Add(config.Guilds[guildID].Reminders[reminderID].CheckTimeout)
 
-                if time.Now().After(lastCheckedPlusTimeout) {
-                    if config.Guilds[guildID].WallReminders == 0 {
-                        config.Guilds[guildID].WallReminders = 1
+                    if time.Now().After(lastCheckedPlusTimeout) {
+                        if config.Guilds[guildID].Reminders[reminderID].Reminders == 0 {
+                            config.Guilds[guildID].Reminders[reminderID].Reminders = 1
 
-                        reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, 
-                            fmt.Sprintf("It's time to check walls! Time last checked %s", config.Guilds[guildID].WallsLastChecked.Round(time.Second)))
-                        config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
-                        config.Guilds[guildID].LastReminder = time.Now()
-                    } else {
-                        lastReminderPlusReminderInterval := config.Guilds[guildID].LastReminder.Add(config.Guilds[guildID].WallsCheckReminder)
+                            reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID, 
+                                fmt.Sprintf("It's time to check %s! Time last checked %s", config.Guilds[guildID].Reminders[reminderID].ReminderName, config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second)))
+                            config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
+                            config.Guilds[guildID].Reminders[reminderID].LastReminder = time.Now()
+                        } else {
+                            lastReminderPlusReminderInterval := config.Guilds[guildID].Reminders[reminderID].LastReminder.Add(config.Guilds[guildID].Reminders[reminderID].CheckReminder)
 
-                        if time.Now().After(lastReminderPlusReminderInterval) {
-                            config.Guilds[guildID].WallReminders++
-                            durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].WallsLastChecked)
-                            msg := fmt.Sprintf("<@&%s>, reminder to check walls! They have still not been checked! It has been %s since the last check!", 
-                                config.Guilds[guildID].WallsRoleMention, 
-                                durationSinceLastChecked.Round(time.Second))
-                            reminderID := sendMsg(d, config.Guilds[guildID].WallsCheckChannelID, msg)
-                            clearReminderMessages(d, guildID)
-                            config.Guilds[guildID].ReminderMessages = append(config.Guilds[guildID].ReminderMessages, reminderID)
-                            config.Guilds[guildID].WallsCheckReminder++
-                            config.Guilds[guildID].LastReminder = time.Now()
-                        }
-                    }
+                            if time.Now().After(lastReminderPlusReminderInterval) {
+                                config.Guilds[guildID].Reminders[reminderID].Reminders++
+                                durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].Reminders[reminderID].LastChecked)
+                                msg := fmt.Sprintf("<@&%s>, reminder to check %s! They have still not been checked! It has been %s since the last check!", 
+                                    config.Guilds[guildID].Reminders[reminderID].RoleMention, 
+                                    config.Guilds[guildID].Reminders[reminderID].ReminderName,
+                                    durationSinceLastChecked.Round(time.Second))
+                                reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID, msg)
+                                clearReminderMessages(d, guildID)
+                                config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
+                                config.Guilds[guildID].Reminders[reminderID].LastReminder = time.Now()
+                            }
+                        } // end checking to see if this is an initial timeout or if a reminder that the timeout has elapsed is required.
 
-                    ConfigHelper.SaveConfig(configFile, config)
-                }
-            }
-        }
+                        ConfigHelper.SaveConfig(configFile, config)
+                    } // end checking to see if we are over the timeout since the last check.
+                } // end checking to see if the current reminder type is enabled.
+            } // end looping over reminder types
+        } // end looping over guilds
 
         time.Sleep(config.TimerLoopTimeout)
     }
@@ -197,7 +235,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
         log.Debugf("Incoming settings message: %+v", msg.Message)
 
         checkGuild(d, channelID, msg.GuildID)
-        err := checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleAdmin)
+        err := checkRole(d, msg, config.Guilds[msg.GuildID].BotRoleAdmin)
         if err != nil {
             sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to update bot settings, but does not have the correct role.", msg.Author.Mention()))
             sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall settings."))
@@ -265,7 +303,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
                     if isAdmin {
                         if len(msg.MentionRoles) > 0 {
                             admin := msg.MentionRoles[0]
-                            config.Guilds[msg.GuildID].WallsRoleAdmin = admin
+                            config.Guilds[msg.GuildID].BotRoleAdmin = admin
                             changed = true
                         } else {
                             sendTempMsg(d, channelID, "Error - invalid/no role specified", 60*time.Second)
