@@ -237,7 +237,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
         checkGuild(d, channelID, msg.GuildID)
         err := checkRole(d, msg, config.Guilds[msg.GuildID].BotRoleAdmin)
         if err != nil {
-            sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to update bot settings, but does not have the correct role.", msg.Author.Mention()))
+            sendMsg(d, config.Guilds[msg.GuildID].BotAdminChannel, fmt.Sprintf("User %s tried to update bot settings, but does not have the correct role.", msg.Author.Mention()))
             sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall settings."))
             return
         }
