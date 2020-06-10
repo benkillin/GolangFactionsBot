@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/benkillin/ConfigHelper"
-	"github.com/benkillin/GolangFactionsBot/src/EmbedHelper"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
 )
@@ -22,22 +21,10 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discor
 
 	if _, ok := config.Guilds[GuildID]; !ok {
 		players := make(map[string]*PlayerConfig)
+		reminders := make(map[string]*ReminderConfig)
 		config.Guilds[GuildID] = &GuildConfig{
-			GuildName: guild.Name,
-			Reminders: &ReminderConfig{
-				CheckChannelID:   "channelid",
-				CheckReminder:    30 * time.Minute,
-				CheckTimeout:     45 * time.Minute,
-				Enabled:          false,
-				LastChecked:      1 * time.Minute,
-				LastReminder:     1 * time.Minute,
-				ReminderMessages: [""],
-				ReminderName:     "DEFAULTREMINDER",
-				Reminders:        0,
-				RoleMention:      "",
-				WeewooMessage:    "WEEEEEOOOOO",
-				WeewoosAllowed:   false,
-			},
+			GuildName:     guild.Name,
+			Reminders:     reminders,
 			CommandPrefix: ".",
 			Players:       players}
 	} else {
@@ -61,12 +48,13 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
 	}
 
 	if _, ok := config.Guilds[GuildID].Players[player.ID]; !ok {
+		blankReminderStats := make(map[string]*PlayerReminderStats)
 		config.Guilds[GuildID].Players[player.ID] = &PlayerConfig{
 			PlayerString:   player.String(),
 			PlayerUsername: player.Username,
 			PlayerMention:  player.Mention(),
-			WallChecks:     0,
-			LastWallCheck:  time.Time{}}
+			ReminderStats:  blankReminderStats,
+		}
 	} else {
 		if player.Username != config.Guilds[GuildID].Players[authorID].PlayerString {
 			config.Guilds[GuildID].Players[authorID].PlayerString = player.String()
@@ -105,8 +93,8 @@ func checkRole(d *discordgo.Session, msg *discordgo.MessageCreate, requiredRole 
 		return nil
 	}
 
-	log.Errorf("User %s <%s (%s)> does not have the correct role.", msg.Author.Username, member.Nick, msg.Author.Mention())
-	return fmt.Errorf("user %s (%s) does not have the necessary role %s", msg.Author.Mention(), msg.Author.ID, config.Guilds[msg.GuildID].WallsRoleMention)
+	log.Errorf("User %s <%s (%s)> does not have the correct role (%s).", msg.Author.Username, member.Nick, msg.Author.Mention(), requiredRole)
+	return fmt.Errorf("user %s (%s) does not have the necessary role %s", msg.Author.Mention(), msg.Author.ID, requiredRole)
 }
 
 // support func for setting the walls timeout and reminder duration.
@@ -127,22 +115,23 @@ func checkHourMinuteDuration(userInputDuration string, handler func(userDuration
 }
 
 // send the current walls settings to the specified channel.
-func sendCurrentWallsSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
-	embed := EmbedHelper.NewEmbed().
-		SetTitle("Walls settings").
-		SetDescription("Current walls settings").
-		AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
-		AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
-		AddField("Role to mention", "<@&"+config.Guilds[msg.GuildID].WallsRoleMention+">").
-		AddField("Bot admin role", "<@&"+config.Guilds[msg.GuildID].WallsRoleAdmin+">").
-		AddField("Check channel", "<#"+config.Guilds[msg.GuildID].WallsCheckChannelID+">").
-		AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
-		AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
-		AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
-		MessageEmbed
+// TODO: update and uncomment
+// func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
+// 	embed := EmbedHelper.NewEmbed().
+// 		SetTitle("Walls settings").
+// 		SetDescription("Current walls settings").
+// 		AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
+// 		AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
+// 		AddField("Role to mention", "<@&"+config.Guilds[msg.GuildID].WallsRoleMention+">").
+// 		AddField("Bot admin role", "<@&"+config.Guilds[msg.GuildID].WallsRoleAdmin+">").
+// 		AddField("Check channel", "<#"+config.Guilds[msg.GuildID].WallsCheckChannelID+">").
+// 		AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
+// 		AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
+// 		AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
+// 		MessageEmbed
 
-	sendTempEmbed(d, channelID, embed, 60*time.Second)
-}
+// 	sendTempEmbed(d, channelID, embed, 60*time.Second)
+// }
 
 // helper func to send an embed message, aka a message that has a bunch of key value pairs and other things like images and stuff.
 func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed) (*discordgo.Message, error) {
@@ -175,13 +164,14 @@ func sendTempEmbed(d *discordgo.Session, channelID string, embed *discordgo.Mess
 
 // clear the reminder messages that the bot has sent out for wall checks.
 func clearReminderMessages(d *discordgo.Session, GuildID string) {
-	for i := 0; i < len(config.Guilds[GuildID].ReminderMessages); i++ {
-		messageID := config.Guilds[GuildID].ReminderMessages[i]
-		deleteMsg(d, config.Guilds[GuildID].WallsCheckChannelID, messageID)
-		time.Sleep(1500 * time.Millisecond)
-	}
-	config.Guilds[GuildID].ReminderMessages = config.Guilds[GuildID].ReminderMessages[:0]
-	ConfigHelper.SaveConfig(configFile, config)
+	// TODO: update and uncomment
+	// for i := 0; i < len(config.Guilds[GuildID].ReminderMessages); i++ {
+	// 	messageID := config.Guilds[GuildID].ReminderMessages[i]
+	// 	deleteMsg(d, config.Guilds[GuildID].WallsCheckChannelID, messageID)
+	// 	time.Sleep(1500 * time.Millisecond)
+	// }
+	// config.Guilds[GuildID].ReminderMessages = config.Guilds[GuildID].ReminderMessages[:0]
+	// ConfigHelper.SaveConfig(configFile, config)
 }
 
 // test func for the unit tests - can be removed if we can figure out how to do unit testing with the discord api mocked somehow.

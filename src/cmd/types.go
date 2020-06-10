@@ -74,8 +74,8 @@ var availableCommands = []CmdHelp{
 	CmdHelp{command: "test", description: "A test command."},
 	CmdHelp{command: "set", description: "Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},
 	// TODO: might have to require having a specified reminder type for /clear andf /weewoo - or infer based on channel.
-	CmdHelp{command: "clear", description: "Mark the walls as all good and clear - nobody is raiding or attacking."},
-	CmdHelp{command: "weewoo", description: "Alert fellow faction members that we are getting raided and are under attack!"},
+	CmdHelp{command: "clear", description: "Clear the reminder for checking on whatever this reminder channel is for."},
+	CmdHelp{command: "weewoo", description: "Trigger an alert for whatever this channel is supposed to be a reminder channel for."},
 	CmdHelp{command: "help", description: "This help command menu."},
 	CmdHelp{command: "invite", description: "Private message you the invite link for this bot to join a server you are an administrator of."},
 	CmdHelp{command: "lennyface", description: "Emoji: giggity"},
@@ -91,7 +91,7 @@ var setCommands = []CmdHelp{
 	CmdHelp{command: "set admin (role)", description: "The role to require to update bot settings on this server (Server administrators always allowed). [admin only]"},
 	CmdHelp{command: "set adminChannel (channel)", description: "The channel to put admin related notifications into (such as if someone attempted an operation they are not permitted with the bot). [admin only]"},
 	CmdHelp{command: "set prefix (prefix)", description: "Set the command prefix to the specified string. (Defaults to .)."},
-	CmdHelp{command: "set addReminder {reminderID}", description: "Add a new reminder type (such as walls, buffers, etc...)."},
+	CmdHelp{command: "set addReminder {reminderID}", description: "Add a new reminder type (such as walls, buffers, cannon boxes, etc...)."},
 
 	CmdHelp{command: "set reminder {reminderID} reminderName (name)", description: "Set the reminder name of the specified reminder type."},
 	CmdHelp{command: "set reminder {reminderID} weewooMsg (message)", description: "Set the message to send if the weewoo command is used."},
