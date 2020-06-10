@@ -262,82 +262,114 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
 		switch subcommand {
 		case "reminder":
-			// TODO: update and uncomment
-			// if len(splitMessage) > 2 {
-			// 	changed := false
-			// 	// TODO extract reminderID
 
-			// 	switch splitMessage[2] {
-			// 	case "on":
-			// 		config.Guilds[msg.GuildID].WallsEnabled = true
-			// 		changed = true
-			// 		sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled!"), 45*time.Second)
+			if len(splitMessage) > 2 {
+				changed := false
+				reminderID := splitMessage[2]
+				log.Debugf("trying to update reminder %s", reminderID)
 
-			// 	case "off":
-			// 		config.Guilds[msg.GuildID].WallsEnabled = false
-			// 		changed = true
-			// 		sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled."), 45*time.Second)
+				// does the reminder exist?
+				if _, ok := config.Guilds[msg.GuildID].Reminders[reminderID]; !ok {
+					log.Debugf("User tried to update settings for %s but that reminder id has not been crated.", reminderID)
+					sendMsg(d, channelID, fmt.Sprintf("Error: the reminder id '%s' has not been added. Add the new reminder with the command '%sset addReminder {REMINDER_ID}'", reminderID, config.Guilds[msg.GuildID].CommandPrefix))
+					return
+				}
 
-			// 	case "channel":
-			// 		if len(splitMessage) > 3 {
-			// 			wallsChannel := splitMessage[3]
-			// 			wallsChannelID := strings.Replace(wallsChannel, "<", "", -1)
-			// 			wallsChannelID = strings.Replace(wallsChannelID, ">", "", -1)
-			// 			wallsChannelID = strings.Replace(wallsChannelID, "#", "", -1)
+				if len(splitMessage) > 3 {
+					reminderCmd := splitMessage[3]
+					log.Debugf("current set command for reminder %s: %s", reminderID, reminderCmd)
+					// CmdHelp{command: "set reminder {reminderID} reminderName (name)", description: "Set the reminder name of the specified reminder type."},
+					// CmdHelp{command: "set reminder {reminderID} weewooMsg (message)", description: "Set the message to send if the weewoo command is used."},
+					// CmdHelp{command: "set reminder {reminderID} weewooEnabled on", description: "Enable weewoos for this reminder type."},
+					// CmdHelp{command: "set reminder {reminderID} weewooEnabled off", description: "Disable weewoos for this reminder type."},
+					// CmdHelp{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
+					switch reminderCmd {
+					case "reminderName":
+						// TODO: support reminder name/description
+					case "weewooMsg":
+						// TODO: extract weewoo message
+					case "weewooEnabled":
+						// TODO: extract weewoo set command
+					case "weewooCmd":
+						// TODO: extract the weewoo command name
+					case "on":
+						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = true
+						changed = true
+						sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled."), 45*time.Second)
 
-			// 			_, err := d.Channel(wallsChannelID)
-			// 			if err != nil {
-			// 				log.Errorf("Invalid channel specified while setting wall checks channel: %s", err)
-			// 				sendTempMsg(d, channelID, fmt.Sprintf("Invalid channel specified: %s", err), 10*time.Second)
-			// 			} else {
-			// 				config.Guilds[msg.GuildID].WallsCheckChannelID = wallsChannelID
-			// 				sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send reminders to <#%s>", wallsChannelID), 5*time.Second)
-			// 				changed = true
-			// 			}
-			// 		} else {
-			// 			sendTempMsg(d, channelID, "usage: "+config.Guilds[msg.GuildID].CommandPrefix+"set walls channel #channelNameForWallChecks", 10*time.Second)
-			// 		}
+					case "off":
+						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = false
+						changed = true
+						sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled!!!!"), 45*time.Second)
 
-			// 	case "role":
-			// 		if len(splitMessage) > 3 {
-			// 			if len(msg.MentionRoles) > 0 {
-			// 				mentionRole := msg.MentionRoles[0]
-			// 				config.Guilds[msg.GuildID].WallsRoleMention = mentionRole
-			// 				changed = true
-			// 			} else {
-			// 				sendTempMsg(d, channelID, "Error - invalid/no role specified", 10*time.Second)
-			// 			}
-			// 		} else {
-			// 			sendTempMsg(d, channelID, "usage: "+config.Guilds[msg.GuildID].CommandPrefix+"set walls role @roleForWallCheckRemidners", 10*time.Second)
-			// 		}
+					case "channel":
+						if len(splitMessage) > 4 {
+							wallsChannel := splitMessage[4]
+							wallsChannelID := strings.Replace(wallsChannel, "<", "", -1)
+							wallsChannelID = strings.Replace(wallsChannelID, ">", "", -1)
+							wallsChannelID = strings.Replace(wallsChannelID, "#", "", -1)
 
-			// 	case "timeout":
-			// 		if len(splitMessage) > 3 {
-			// 			changed = true
-			// 			checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration) {
-			// 				config.Guilds[msg.GuildID].WallsCheckTimeout = userDuration
-			// 			}, d, channelID, msg)
-			// 		}
+							_, err := d.Channel(wallsChannelID)
+							if err != nil {
+								log.Errorf("Invalid channel specified while setting wall checks channel: %s", err)
+								sendTempMsg(d, channelID, fmt.Sprintf("Invalid channel specified: %s", err), 10*time.Second)
+							} else {
+								config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID = wallsChannelID
+								sendTempMsg(d, channelID, fmt.Sprintf("Set channel to send reminders to <#%s>", wallsChannelID), 5*time.Second)
+								changed = true
+							}
+						} else {
+							sendTempMsg(d, channelID, "usage: "+config.Guilds[msg.GuildID].CommandPrefix+"set walls channel #channelNameForWallChecks", 10*time.Second)
+						}
 
-			// 	case "reminder":
-			// 		if len(splitMessage) > 3 {
-			// 			changed = true
-			// 			checkHourMinuteDuration(splitMessage[3], func(userDuration time.Duration) {
-			// 				config.Guilds[msg.GuildID].WallsCheckReminder = userDuration
-			// 			}, d, channelID, msg)
-			// 		}
+					case "role":
+						if len(splitMessage) > 4 {
+							if len(msg.MentionRoles) > 0 {
+								mentionRole := msg.MentionRoles[0]
+								config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention = mentionRole
+								changed = true
+							} else {
+								sendTempMsg(d, channelID, "Error - invalid/no role specified", 10*time.Second)
+							}
+						} else {
+							sendTempMsg(d, channelID, "usage: "+config.Guilds[msg.GuildID].CommandPrefix+"set walls role @roleForWallCheckRemidners", 10*time.Second)
+						}
 
-			// 	default:
-			// 		sendCurrentReminderSettings(d, channelID, msg)
-			// 	}
+					case "timeout":
+						if len(splitMessage) > 4 {
+							changed = true
+							checkHourMinuteDuration(splitMessage[4], func(userDuration time.Duration) {
+								config.Guilds[msg.GuildID].Reminders[reminderID].CheckTimeout = userDuration
+							}, d, channelID, msg)
+						}
 
-			// 	if changed {
-			// 		ConfigHelper.SaveConfig(configFile, config)
-			// 		sendCurrentReminderSettings(d, channelID, msg)
-			// 	}
-			// } else {
-			// 	sendCurrentReminderSettings(d, channelID, msg)
-			// }
+					case "reminder":
+						if len(splitMessage) > 4 {
+							changed = true
+							checkHourMinuteDuration(splitMessage[4], func(userDuration time.Duration) {
+								config.Guilds[msg.GuildID].Reminders[reminderID].CheckReminder = userDuration
+							}, d, channelID, msg)
+						}
+
+					default:
+						sendCurrentReminderSettings(d, channelID, msg, reminderID)
+					}
+
+				} else {
+					//user did not enter a command for the reminder id
+					sendMsg(d, channelID, fmt.Sprintf("Error: no command specified to update a reminder '%s' settings.", reminderID))
+				}
+
+				if changed {
+					ConfigHelper.SaveConfig(configFile, config)
+					sendCurrentReminderSettings(d, channelID, msg, reminderID)
+				}
+			} else {
+				// TODO: send current list of reminders:
+				for rID, el := range config.Guilds[msg.GuildID].Reminders {
+					log.Debugf("ReminderID: %s, Reminder El %+v", rID, el)
+				}
+			}
 
 		case "prefix":
 			if len(splitMessage) > 2 {
@@ -400,16 +432,16 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 				// check to see if the requested reminder ID exists:
 				if _, ok := config.Guilds[msg.GuildID].Reminders[newReminderID]; !ok {
 					config.Guilds[msg.GuildID].Reminders[newReminderID] = &ReminderConfig{
-						CheckChannelID:   "",
+						CheckChannelID:   "TODO: SET CHECK CHANNEL ID",
 						CheckReminder:    30 * time.Minute,
 						CheckTimeout:     45 * time.Minute,
 						Enabled:          false,
 						LastChecked:      time.Now(),
 						LastReminder:     time.Now(),
 						ReminderMessages: []string{},
-						ReminderName:     newReminderID,
+						ReminderName:     "TODO: SET REMINDER NAME",
 						Reminders:        0,
-						RoleMention:      "",
+						RoleMention:      "TODO: SET ROLE",
 						WeewooMessage:    "This is the default weewoo message indicating an alert for this reminder has been confirmed as in progress. You can update this message using the bot set reminder commands.",
 						WeewoosAllowed:   false,
 					}

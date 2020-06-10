@@ -45,6 +45,7 @@ type ReminderConfig struct {
 	ReminderMessages []string
 	WeewoosAllowed   bool   // TODO: add support for this setting
 	WeewooMessage    string // TODO: add support for this setting
+	WeewooCommand    string // TODO: add support for this setting
 }
 
 // PlayerConfig represents the players and their scores.
@@ -76,6 +77,8 @@ var availableCommands = []CmdHelp{
 	// TODO: might have to require having a specified reminder type for /clear andf /weewoo - or infer based on channel.
 	CmdHelp{command: "clear", description: "Clear the reminder for checking on whatever this reminder channel is for."},
 	CmdHelp{command: "weewoo", description: "Trigger an alert for whatever this channel is supposed to be a reminder channel for."},
+	// TODO: implement the top command
+	CmdHelp{command: "top", description: "Display top player statistics. TODO: IMPLEMENT THIS COMMAND"},
 	CmdHelp{command: "help", description: "This help command menu."},
 	CmdHelp{command: "invite", description: "Private message you the invite link for this bot to join a server you are an administrator of."},
 	CmdHelp{command: "lennyface", description: "Emoji: giggity"},
@@ -95,9 +98,9 @@ var setCommands = []CmdHelp{
 
 	CmdHelp{command: "set reminder {reminderID} reminderName (name)", description: "Set the reminder name of the specified reminder type."},
 	CmdHelp{command: "set reminder {reminderID} weewooMsg (message)", description: "Set the message to send if the weewoo command is used."},
-	CmdHelp{command: "set reminder {reminderID} weewoo on", description: "Allow weewoos for this reminder type."},
-	CmdHelp{command: "set reminder {reminderID} weewoo of", description: "Disable weewoos for this reminder type."},
-	CmdHelp{command: "set reminder {reminderID} weewoo cmd {command}", description: "Set the command for a weewoo alert."},
+	CmdHelp{command: "set reminder {reminderID} weewooEnabled on", description: "Enable weewoos for this reminder type."},
+	CmdHelp{command: "set reminder {reminderID} weewooEnabled on", description: "Disable weewoos for this reminder type."},
+	CmdHelp{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
 	CmdHelp{command: "set reminder {reminderID} on", description: "Enable checks for specified reminder type."},
 	CmdHelp{command: "set reminder {reminderID} off", description: "Disable checks for specified reminder type."},
 	CmdHelp{command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},

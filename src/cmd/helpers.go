@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/benkillin/ConfigHelper"
+	"github.com/benkillin/GolangFactionsBot/src/EmbedHelper"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
 )
@@ -116,22 +117,38 @@ func checkHourMinuteDuration(userInputDuration string, handler func(userDuration
 
 // send the current walls settings to the specified channel.
 // TODO: update and uncomment
-// func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
-// 	embed := EmbedHelper.NewEmbed().
-// 		SetTitle("Walls settings").
-// 		SetDescription("Current walls settings").
-// 		AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
-// 		AddField("Checks enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].WallsEnabled)).
-// 		AddField("Role to mention", "<@&"+config.Guilds[msg.GuildID].WallsRoleMention+">").
-// 		AddField("Bot admin role", "<@&"+config.Guilds[msg.GuildID].WallsRoleAdmin+">").
-// 		AddField("Check channel", "<#"+config.Guilds[msg.GuildID].WallsCheckChannelID+">").
-// 		AddField("Walls check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckReminder)).
-// 		AddField("Walls check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsCheckTimeout)).
-// 		AddField("Walls last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].WallsLastChecked)).
-// 		MessageEmbed
+func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, reminderID string) {
+	if _, ok := config.Guilds[msg.GuildID].Reminders[reminderID]; !ok {
+		log.Errorf("sendCurrentReminderSettings: Reminder settings requested to be sent for reminderID '%s' but it does not exist.", reminderID)
+		return
+	}
 
-// 	sendTempEmbed(d, channelID, embed, 60*time.Second)
-// }
+	// CmdHelp{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
+	// CmdHelp{command: "set reminder {reminderID} on", description: "Enable checks for specified reminder type."},
+	// CmdHelp{command: "set reminder {reminderID} off", description: "Disable checks for specified reminder type."},
+	// CmdHelp{command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
+	// CmdHelp{command: "set reminder {reminderID} channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
+	// CmdHelp{command: "set reminder {reminderID} timeout (timeout)", description: "Sets timeout before asking for an action for this reminder. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
+	// CmdHelp{command: "set reminder {reminderID} reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
+	embed := EmbedHelper.NewEmbed().
+		SetTitle("Walls settings").
+		SetDescription("Current walls settings").
+		AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
+		AddField("Bot admin role", "<@&"+config.Guilds[msg.GuildID].BotRoleAdmin+">").
+		AddField("Reminder ID", reminderID).
+		AddField("Reminder Name", config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName).
+		AddField("Reminder enabled", fmt.Sprintf("%t", config.Guilds[msg.GuildID].Reminders[reminderID].Enabled)).
+		AddField("Role to mention", "<@&"+config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention+">").
+		AddField("Check channel", "<#"+config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID+">").
+		AddField("Reminder check reminder", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].CheckReminder)).
+		AddField("Reminder check interval", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].CheckTimeout)).
+		AddField("Reminder last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked)).
+		AddField("Reminder alert message", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage)).
+		AddField("Reminder alert command", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand)).
+		MessageEmbed
+
+	sendTempEmbed(d, channelID, embed, 60*time.Second)
+}
 
 // helper func to send an embed message, aka a message that has a bunch of key value pairs and other things like images and stuff.
 func sendEmbed(d *discordgo.Session, channelID string, embed *discordgo.MessageEmbed) (*discordgo.Message, error) {
