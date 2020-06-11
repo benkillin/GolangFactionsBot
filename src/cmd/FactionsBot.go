@@ -151,7 +151,7 @@ func doTimerChecks(d *discordgo.Session) {
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
 									durationSinceLastChecked.Round(time.Second))
 								reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID, msg)
-								clearReminderMessages(d, guildID)
+								clearReminderMessages(d, guildID, reminderID) // TODO: verify adding reminderID here was correct?????
 								config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
 								config.Guilds[guildID].Reminders[reminderID].LastReminder = time.Now()
 							}
@@ -174,6 +174,15 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 		return
 	}
 
+	// loop through each reminder and check to see if it is the current channel, and then grab the assigned weewoo command and put that in the switch for executing a weewoo action.
+	// TODO: Remove the generic weewoo command.
+	currentChannelWeewooCmd := "DOES NOT EXIZZZZTTTTTTTLOLOL"
+	for _, reminder := range config.Guilds[msg.GuildID].Reminders {
+		if reminder.CheckChannelID == msg.ChannelID {
+			currentChannelWeewooCmd = reminder.WeewooCommand
+		}
+	}
+
 	checkGuild(d, msg.ChannelID, msg.GuildID)
 	content := msg.Content
 	splitContent := strings.Split(content, " ")
@@ -182,10 +191,11 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 	case prefix + "test":
 		testCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "set":
-		setCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "clear":
 		clearCmd(d, msg.ChannelID, msg, splitContent)
-	case prefix + "weewoo":
+	case prefix + "weewoo": // TODO: update this to grab active reminder channels and check to see if there is a particular command for weewooing for this channel.
+		weewooCmd(d, msg.ChannelID, msg, splitContent)
+	case prefix + currentChannelWeewooCmd:
 		weewooCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "help":
 		helpCmd(d, msg.ChannelID, msg, splitContent, availableCommands)
@@ -278,20 +288,49 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 				if len(splitMessage) > 3 {
 					reminderCmd := splitMessage[3]
 					log.Debugf("current set command for reminder %s: %s", reminderID, reminderCmd)
-					// CmdHelp{command: "set reminder {reminderID} reminderName (name)", description: "Set the reminder name of the specified reminder type."},
-					// CmdHelp{command: "set reminder {reminderID} weewooMsg (message)", description: "Set the message to send if the weewoo command is used."},
-					// CmdHelp{command: "set reminder {reminderID} weewooEnabled on", description: "Enable weewoos for this reminder type."},
-					// CmdHelp{command: "set reminder {reminderID} weewooEnabled off", description: "Disable weewoos for this reminder type."},
-					// CmdHelp{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
+
 					switch reminderCmd {
 					case "reminderName":
-						// TODO: support reminder name/description
+						if len(splitMessage) >= 4 {
+							name := strings.Join(splitMessage[4:], " ")
+							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName = name
+							changed = true
+							sendTempMsg(d, channelID, fmt.Sprintf("Set reminder name to '%s'.", name), 45*time.Second)
+						} else {
+							sendTempMsg(d, channelID, "(reminderName) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
+						}
 					case "weewooMsg":
-						// TODO: extract weewoo message
+						if len(splitMessage) >= 4 {
+							messageForAlert := strings.Join(splitMessage[4:], " ")
+							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage = messageForAlert
+							changed = true
+							sendTempMsg(d, channelID, fmt.Sprintf("Set the reminder alert message to '%s'", messageForAlert), 45*time.Second)
+						} else {
+							sendTempMsg(d, channelID, "(weewooMsg) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
+						}
 					case "weewooEnabled":
-						// TODO: extract weewoo set command
+						if len(splitMessage) > 4 {
+							onOrOff := strings.ToLower(splitMessage[4])
+							if onOrOff == "on" {
+								config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed = true
+								changed = true
+							} else {
+								config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed = false
+								changed = true
+							}
+							sendTempMsg(d, channelID, fmt.Sprintf("Set Alert commands allowed to '%t'", config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed), 45*time.Second)
+						} else {
+							sendTempMsg(d, channelID, "(weewooEnabled) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
+						}
 					case "weewooCmd":
-						// TODO: extract the weewoo command name
+						if len(splitMessage) >= 4 {
+							alertCommand := splitMessage[4]
+							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand = alertCommand
+							changed = true
+							sendTempMsg(d, channelID, fmt.Sprintf("Set the alert commands '%s'", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand), 45*time.Second)
+						} else {
+							sendTempMsg(d, channelID, "(weewooCmd) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
+						}
 					case "on":
 						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = true
 						changed = true
@@ -311,7 +350,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
 							_, err := d.Channel(wallsChannelID)
 							if err != nil {
-								log.Errorf("Invalid channel specified while setting wall checks channel: %s", err)
+								log.Errorf("Invalid channel specified while setting reminder '%s' checks channel: %s", reminderID, err)
 								sendTempMsg(d, channelID, fmt.Sprintf("Invalid channel specified: %s", err), 10*time.Second)
 							} else {
 								config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID = wallsChannelID
@@ -357,7 +396,8 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 
 				} else {
 					//user did not enter a command for the reminder id
-					sendMsg(d, channelID, fmt.Sprintf("Error: no command specified to update a reminder '%s' settings.", reminderID))
+					sendMsg(d, channelID, fmt.Sprintf("Error: no command specified to update a reminder '%s' settings. Current reminder settings:", reminderID))
+					sendCurrentReminderSettings(d, channelID, msg, reminderID)
 				}
 
 				if changed {
@@ -365,10 +405,15 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 					sendCurrentReminderSettings(d, channelID, msg, reminderID)
 				}
 			} else {
-				// TODO: send current list of reminders:
+				embed := EmbedHelper.NewEmbed().
+					SetTitle("Reminder ID list").
+					SetDescription("Please specify the reminder you wish to configure. Available reminders:")
+
 				for rID, el := range config.Guilds[msg.GuildID].Reminders {
-					log.Debugf("ReminderID: %s, Reminder El %+v", rID, el)
+					embed.AddField(rID, el.ReminderName)
 				}
+
+				sendTempEmbed(d, channelID, embed.MessageEmbed, 60*time.Second)
 			}
 
 		case "prefix":
@@ -443,6 +488,7 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 						Reminders:        0,
 						RoleMention:      "TODO: SET ROLE",
 						WeewooMessage:    "This is the default weewoo message indicating an alert for this reminder has been confirmed as in progress. You can update this message using the bot set reminder commands.",
+						WeewooCommand:    "TODO: SET THE COMMAND TO TRIGGER THE ALERT FOR THIS REMINDER",
 						WeewoosAllowed:   false,
 					}
 					ConfigHelper.SaveConfig(configFile, config)

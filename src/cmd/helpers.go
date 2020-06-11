@@ -116,20 +116,12 @@ func checkHourMinuteDuration(userInputDuration string, handler func(userDuration
 }
 
 // send the current walls settings to the specified channel.
-// TODO: update and uncomment
 func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, reminderID string) {
 	if _, ok := config.Guilds[msg.GuildID].Reminders[reminderID]; !ok {
 		log.Errorf("sendCurrentReminderSettings: Reminder settings requested to be sent for reminderID '%s' but it does not exist.", reminderID)
 		return
 	}
 
-	// CmdHelp{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
-	// CmdHelp{command: "set reminder {reminderID} on", description: "Enable checks for specified reminder type."},
-	// CmdHelp{command: "set reminder {reminderID} off", description: "Disable checks for specified reminder type."},
-	// CmdHelp{command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
-	// CmdHelp{command: "set reminder {reminderID} channel (channel)", description: "The channel to send reminder messages and weewoo alerts to."},
-	// CmdHelp{command: "set reminder {reminderID} timeout (timeout)", description: "Sets timeout before asking for an action for this reminder. Specify timeout in hours or minutes such as 3m or 2h. Defaults to 45 minutes."},
-	// CmdHelp{command: "set reminder {reminderID} reminder (reminder)", description: "Sets reminder interval to nag the role for wall checks to check walls. Specify timeout in hours or minutes such as 2m or 1h. Defaults to 30 minutes."},
 	embed := EmbedHelper.NewEmbed().
 		SetTitle("Walls settings").
 		SetDescription("Current walls settings").
@@ -145,6 +137,7 @@ func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *di
 		AddField("Reminder last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked)).
 		AddField("Reminder alert message", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage)).
 		AddField("Reminder alert command", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand)).
+		AddField("Reminder alert enabled?", fmt.Sprintf("%t", config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed)).
 		MessageEmbed
 
 	sendTempEmbed(d, channelID, embed, 60*time.Second)
@@ -180,15 +173,16 @@ func sendTempEmbed(d *discordgo.Session, channelID string, embed *discordgo.Mess
 }
 
 // clear the reminder messages that the bot has sent out for wall checks.
-func clearReminderMessages(d *discordgo.Session, GuildID string) {
-	// TODO: update and uncomment
-	// for i := 0; i < len(config.Guilds[GuildID].ReminderMessages); i++ {
-	// 	messageID := config.Guilds[GuildID].ReminderMessages[i]
-	// 	deleteMsg(d, config.Guilds[GuildID].WallsCheckChannelID, messageID)
-	// 	time.Sleep(1500 * time.Millisecond)
-	// }
-	// config.Guilds[GuildID].ReminderMessages = config.Guilds[GuildID].ReminderMessages[:0]
-	// ConfigHelper.SaveConfig(configFile, config)
+func clearReminderMessages(d *discordgo.Session, GuildID string, reminderID string) {
+	//for i := 0; i < len(config.Guilds[GuildID].Reminders[reminderID].ReminderMessages); i++ {
+	for _, element := range config.Guilds[GuildID].Reminders[reminderID].ReminderMessages {
+		//messageID := config.Guilds[GuildID].ReminderMessages[i]
+		messageID := element
+		deleteMsg(d, config.Guilds[GuildID].Reminders[reminderID].CheckChannelID, messageID)
+		time.Sleep(1500 * time.Millisecond)
+	}
+	config.Guilds[GuildID].Reminders[reminderID].ReminderMessages = config.Guilds[GuildID].Reminders[reminderID].ReminderMessages[:0]
+	ConfigHelper.SaveConfig(configFile, config)
 }
 
 // test func for the unit tests - can be removed if we can figure out how to do unit testing with the discord api mocked somehow.
