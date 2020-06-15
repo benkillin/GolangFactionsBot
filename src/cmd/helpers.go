@@ -75,7 +75,7 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
 		if reminderAvail {
 			config.Guilds[GuildID].Players[player.ID].ReminderStats[reminderID] = &PlayerReminderStats{
 				Checks:    0,
-				LastCheck: time.Now(),
+				LastCheck: time.Now().AddDate(0, 0, -1),
 				Weewoos:   0,
 			}
 		}
