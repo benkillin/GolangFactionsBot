@@ -22,10 +22,11 @@ type LoggingConfig struct {
 
 // GuildConfig represents the configuration of a single instance of this bot on a particular server/guild
 type GuildConfig struct {
-	GuildName       string
-	CommandPrefix   string
-	BotRoleAdmin    string
-	BotAdminChannel string
+	GuildName           string
+	CommandPrefix       string
+	BotRoleAdmin        string
+	BotAdminChannel     string
+	MinimumClearTimeout time.Duration
 
 	Reminders map[string]*ReminderConfig
 	Players   map[string]*PlayerConfig
@@ -68,8 +69,6 @@ type CmdHelp struct {
 	command     string
 	description string
 }
-
-// TODO: update the below help commands, specifically the set commands, so they provide help for setting reminders of a generic type.
 
 var availableCommands = []CmdHelp{
 	CmdHelp{command: "test", description: "A test command."},

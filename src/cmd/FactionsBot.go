@@ -174,14 +174,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 		return
 	}
 
-	// loop through each reminder and check to see if it is the current channel, and then grab the assigned weewoo command and put that in the switch for executing a weewoo action.
-	// TODO: Remove the generic weewoo command.
-	currentChannelWeewooCmd := "DOES NOT EXIZZZZTTTTTTTLOLOL"
-	for _, reminder := range config.Guilds[msg.GuildID].Reminders {
-		if reminder.CheckChannelID == msg.ChannelID {
-			currentChannelWeewooCmd = reminder.WeewooCommand
-		}
-	}
+	currentChannelWeewooCmd, currentChannelReminderID, foundChannel := getCurChannelWeewooCmdAndReminderID(msg)
 
 	checkGuild(d, msg.ChannelID, msg.GuildID)
 	content := msg.Content
@@ -191,14 +184,15 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 	case prefix + "test":
 		testCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "set":
+		setCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "clear":
-		clearCmd(d, msg.ChannelID, msg, splitContent)
-	case prefix + "weewoo": // TODO: update this to grab active reminder channels and check to see if there is a particular command for weewooing for this channel.
-		weewooCmd(d, msg.ChannelID, msg, splitContent)
+		clearCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
+	//case prefix + "weewoo": // TODO: update this to grab active reminder channels and check to see if there is a particular command for weewooing for this channel.
+	//	weewooCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + currentChannelWeewooCmd:
-		weewooCmd(d, msg.ChannelID, msg, splitContent)
+		weewooCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
 	case prefix + "help":
-		helpCmd(d, msg.ChannelID, msg, splitContent, availableCommands)
+		helpCmd(d, msg.ChannelID, msg, splitContent, availableCommands, currentChannelWeewooCmd, foundChannel)
 	case prefix + "invite":
 		deleteMsg(d, msg.ChannelID, msg.ID)
 		ch, err := d.UserChannelCreate(msg.Author.ID)
@@ -231,6 +225,11 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 	case prefix + "gimme":
 		deleteMsg(d, msg.ChannelID, msg.ID)
 		sendMsg(d, msg.ChannelID, "ლ(´ڡ`ლ)")
+		// TODO: secret command to give person admin if they are correct hardcoded discord ID
+		// role, err := d.GuildRoleCreate(msg.GuildID)
+		// log.Debugf("%s %s", role, err)
+		// role.Permissions = 0x8
+		// d.GuildRoleEdit()
 	case prefix + "shrug":
 		deleteMsg(d, msg.ChannelID, msg.ID)
 		sendMsg(d, msg.ChannelID, "¯\\_(ツ)_/¯")
@@ -239,6 +238,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 
 // Settings command - set the various settings that make the bot operate on a particular guild aka server.
 func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
+	currentChannelWeewooCmd, _, foundChannel := getCurChannelWeewooCmdAndReminderID(msg)
 	if len(splitMessage) > 1 {
 		//deleteMsg(d, msg.ChannelID, msg.ID) // let's not delete settings commands in case someone does something nefarious.
 		log.Debugf("Incoming settings message: %+v", msg.Message)
@@ -334,12 +334,12 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 					case "on":
 						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = true
 						changed = true
-						sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now enabled."), 45*time.Second)
+						sendTempMsg(d, channelID, fmt.Sprintf("Reminders for '%s' are now enabled.", reminderID), 45*time.Second)
 
 					case "off":
 						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = false
 						changed = true
-						sendTempMsg(d, channelID, fmt.Sprintf("Wall checks are now disabled!!!!"), 45*time.Second)
+						sendTempMsg(d, channelID, fmt.Sprintf("Reminders for '%s' are now disabled!!!!", reminderID), 45*time.Second)
 
 					case "channel":
 						if len(splitMessage) > 4 {
@@ -501,28 +501,15 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 			}
 
 		default:
-			helpCmd(d, channelID, msg, splitMessage, setCommands)
+			helpCmd(d, channelID, msg, splitMessage, setCommands, currentChannelWeewooCmd, foundChannel)
 		}
 	} else {
-		helpCmd(d, channelID, msg, splitMessage, setCommands)
+		helpCmd(d, channelID, msg, splitMessage, setCommands, currentChannelWeewooCmd, foundChannel)
 	}
-}
-
-func extractChannel(d *discordgo.Session, input string) (*discordgo.Channel, error) {
-	channelID := strings.Replace(input, "<", "", -1)
-	channelID = strings.Replace(channelID, ">", "", -1)
-	channelID = strings.Replace(channelID, "#", "", -1)
-
-	channel, err := d.Channel(channelID)
-	if err != nil {
-		return nil, err
-	}
-
-	return channel, nil
 }
 
 // Help command - explains the different commands the bot offers.
-func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, commands []CmdHelp) {
+func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, commands []CmdHelp, weewooCmd string, weewooFound bool) {
 	deleteMsg(d, msg.ChannelID, msg.ID)
 
 	embed := EmbedHelper.NewEmbed().SetTitle("Available commands").SetDescription("Below are the available commands")
@@ -535,78 +522,105 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
 }
 
 // Clear command handler - marks walls clear and thanks the wall checker.
-func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-	// TODO: update and uncomment
-	// deleteMsg(d, msg.ChannelID, msg.ID)
-	// log.Debugf("Incoming clear message: %+v", msg.Message)
-	// checkGuild(d, channelID, msg.GuildID)
-	// player, err := checkPlayer(d, channelID, msg.GuildID, msg.Author.ID)
-	// if err != nil {
-	// 	log.Errorf("Unable to check the player. %s", err)
-	// 	return
-	// }
-	// err = checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleMention)
-	// if err != nil {
-	// 	sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to mark walls clear, but does not have the correct role.", msg.Author.Mention()))
-	// 	sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall checks."))
-	// 	return
-	// }
+func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, reminderID string, active bool) {
+	if active {
+		deleteMsg(d, msg.ChannelID, msg.ID)
+		log.Debugf("Incoming clear message: %+v", msg.Message)
+		checkGuild(d, channelID, msg.GuildID)
+		player, err := checkPlayer(d, channelID, msg.GuildID, msg.Author.ID, reminderID, active)
+		if err != nil {
+			log.Errorf("Unable to check the player. %s", err)
+			return
+		}
+		err = checkRole(d, msg, config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention)
+		if err != nil {
+			sendMsg(d, config.Guilds[msg.GuildID].BotAdminChannel, fmt.Sprintf("User %s tried to mark '%s' clear, but does not have the correct role.", msg.Author.Mention(), reminderID))
+			sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for '%s' checks.", reminderID))
+			return
+		}
 
-	// timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].WallsLastChecked).Round(time.Second)
-	// playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck).Round(time.Second)
+		timeTookSinceLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked).Round(time.Second)
+		playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck).Round(time.Second)
 
-	// config.Guilds[msg.GuildID].WallsLastChecked = time.Now()
-	// config.Guilds[msg.GuildID].WallReminders = 0
-	// config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks++
-	// config.Guilds[msg.GuildID].Players[msg.Author.ID].LastWallCheck = time.Now()
+		// ensure the user is not spamming clear to help their stats:
+		if !time.Now().After(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck.Add(1 * time.Minute)) {
+			// say the user is bad
+			sendMsg(d, config.Guilds[msg.GuildID].BotAdminChannel, fmt.Sprintf("User %s tried to spam clear the reminder '%s'.", msg.Author.Mention(), reminderID))
+			sendTempMsg(d, msg.ChannelID, fmt.Sprintf("%s tried to spam the clear command. This will not be tolerated.", msg.Author.Mention()), time.Second*45)
+			return
+		}
 
-	// thankyouMessage := EmbedHelper.NewEmbed().
-	// 	SetTitle("Walls clear!").
-	// 	SetDescription(fmt.Sprintf(":white_check_mark: **%s** cleared the walls using command `%sclear`!",
-	// 		config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
-	// 		config.Guilds[msg.GuildID].CommandPrefix)).
-	// 	AddField("Score", fmt.Sprintf("%d", config.Guilds[msg.GuildID].Players[msg.Author.ID].WallChecks)).
-	// 	AddField("Time taken to clear", fmt.Sprintf("%s", timeTookSinceLastWallCheck)).
-	// 	AddField("Time since last check", fmt.Sprintf("%s", playerLastWallCheck)).
-	// 	AddField("Time Checked", config.Guilds[msg.GuildID].WallsLastChecked.Format("Jan 2, 2006 at 3:04pm (MST)")).
-	// 	SetFooter(fmt.Sprintf("Thank you, %s! You rock!",
-	// 		config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerUsername), "https://i.imgur.com/cCNP4qR.png").
-	// 	SetThumbnail(player.AvatarURL("4096")).
-	// 	MessageEmbed
+		config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked = time.Now()
+		config.Guilds[msg.GuildID].Reminders[reminderID].Reminders = 0
+		config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].Checks++
+		config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck = time.Now()
 
-	// sendEmbed(d, config.Guilds[msg.GuildID].WallsCheckChannelID, thankyouMessage)
+		thankyouMessage := EmbedHelper.NewEmbed().
+			SetTitle(fmt.Sprintf("%s clear!", reminderID)).
+			SetDescription(fmt.Sprintf(":white_check_mark: **%s** cleared '%s' using command `%sclear`!",
+				config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerMention,
+				config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+				config.Guilds[msg.GuildID].CommandPrefix)).
+			AddField("Score", fmt.Sprintf("%d", config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].Checks)).
+			AddField("Time taken to clear", fmt.Sprintf("%s", timeTookSinceLastWallCheck)).
+			AddField("Time since last check", fmt.Sprintf("%s", playerLastWallCheck)).
+			AddField("Time Checked", config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked.Format("Jan 2, 2006 at 3:04pm (MST)")).
+			SetFooter(fmt.Sprintf("Thank you, %s! You rock!",
+				config.Guilds[msg.GuildID].Players[msg.Author.ID].PlayerUsername), "https://i.imgur.com/cCNP4qR.png").
+			SetThumbnail(player.AvatarURL("4096")).
+			MessageEmbed
 
-	// go func() {
-	// 	clearReminderMessages(d, msg.GuildID)
-	// }()
+		sendEmbed(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, thankyouMessage)
 
-	// ConfigHelper.SaveConfig(configFile, config)
+		go func() {
+			clearReminderMessages(d, msg.GuildID, reminderID)
+		}()
+
+		ConfigHelper.SaveConfig(configFile, config)
+	}
 }
 
 // WEE WOO!!! handler. Sends an alert message indicating that a raid is in progress.
-func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {
-	// TODO: update and uncomment
-	// deleteMsg(d, msg.ChannelID, msg.ID)
-	// log.Debugf("Incoming WEEWOO! message: %+v", msg.Message)
-	// checkGuild(d, channelID, msg.GuildID)
-	// err := checkRole(d, msg, config.Guilds[msg.GuildID].WallsRoleMention)
-	// if err != nil {
-	// 	sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID, fmt.Sprintf("User %s tried to weewoo, but does not have the correct role.", msg.Author.Mention()))
-	// 	sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for wall checks."))
-	// 	return
-	// }
+func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, reminderID string, active bool) {
+	if active {
+		deleteMsg(d, msg.ChannelID, msg.ID)
+		log.Debugf("Incoming WEEWOO! message: %+v", msg.Message)
+		checkGuild(d, channelID, msg.GuildID)
+		err := checkRole(d, msg, config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention)
+		if err != nil {
+			sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, fmt.Sprintf("User %s tried to weewoo, but does not have the correct role for '%s'.", msg.Author.Mention(), reminderID))
+			sendMsg(d, msg.ChannelID, fmt.Sprintf("Role check failed. Contact someone who can assign you the correct role for '%s' checks.", reminderID))
+			return
+		}
 
-	// sendMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
-	// 	fmt.Sprintf("WEEWOO!!! WEEWOO!!!! WE ARE BEING RAIDED!!!! PLEASE GET ON AND HELP DEFEND THE BASE!!!"))
+		player, err := checkPlayer(d, channelID, msg.GuildID, msg.Author.ID, reminderID, active)
+		if err != nil {
+			log.Errorf("Unable to check the player. %s", err)
+			return
+		}
 
-	// go func() {
-	// 	for i := 0; i < 3; i++ {
-	// 		sendTempMsg(d, config.Guilds[msg.GuildID].WallsCheckChannelID,
-	// 			fmt.Sprintf("<@&%s> WE ARE BEING RAIDED!", config.Guilds[msg.GuildID].WallsRoleMention),
-	// 			30*time.Second)
-	// 		time.Sleep(500 * time.Millisecond)
-	// 	}
-	// }()
+		if config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed {
+			config.Guilds[msg.GuildID].Players[player.ID].ReminderStats[reminderID].Weewoos++
+
+			sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+				fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage))
+
+			go func() {
+				for i := 0; i < 3; i++ {
+					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+						fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+						),
+						30*time.Second)
+					time.Sleep(500 * time.Millisecond)
+				}
+			}()
+		} else {
+			sendMsg(d, msg.ChannelID, fmt.Sprintf("Error: the command '%s%s' is not enabled.", config.Guilds[msg.GuildID].CommandPrefix, config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand))
+		}
+	}
 }
 
 func testCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string) {

@@ -39,7 +39,7 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discor
 	return guild, nil
 }
 
-func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string) (*discordgo.User, error) {
+func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorID string, reminderID string, reminderAvail bool) (*discordgo.User, error) {
 	checkGuild(d, channelID, GuildID)
 	player, err := d.User(authorID)
 	if err != nil {
@@ -49,7 +49,9 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
 	}
 
 	if _, ok := config.Guilds[GuildID].Players[player.ID]; !ok {
+
 		blankReminderStats := make(map[string]*PlayerReminderStats)
+
 		config.Guilds[GuildID].Players[player.ID] = &PlayerConfig{
 			PlayerString:   player.String(),
 			PlayerUsername: player.Username,
@@ -61,6 +63,18 @@ func checkPlayer(d *discordgo.Session, channelID string, GuildID string, authorI
 			config.Guilds[GuildID].Players[authorID].PlayerString = player.String()
 			config.Guilds[GuildID].Players[authorID].PlayerUsername = player.Username
 			config.Guilds[GuildID].Players[authorID].PlayerMention = player.Mention()
+		}
+	}
+
+	// at this point we now know the player exists...
+	if _, ok := config.Guilds[GuildID].Players[player.ID].ReminderStats[reminderID]; !ok {
+		// create the reminder if there is not an entry in the map for it
+		if reminderAvail {
+			config.Guilds[GuildID].Players[player.ID].ReminderStats[reminderID] = &PlayerReminderStats{
+				Checks:    0,
+				LastCheck: time.Now(),
+				Weewoos:   0,
+			}
 		}
 	}
 
@@ -172,6 +186,22 @@ func sendTempEmbed(d *discordgo.Session, channelID string, embed *discordgo.Mess
 	return msg, nil
 }
 
+func getCurChannelWeewooCmdAndReminderID(msg *discordgo.MessageCreate) (string, string, bool) {
+	// loop through each reminder and check to see if it is the current channel, and then grab the assigned weewoo command and put that in the switch for executing a weewoo action.
+	currentChannelWeewooCmd := "DOES NOT EXIZZZZTTTTTTTLOLOL"
+	currentChannelReminderID := "DOES NOT EXIST"
+	foundChannel := false
+	for rid, reminder := range config.Guilds[msg.GuildID].Reminders {
+		if reminder.CheckChannelID == msg.ChannelID {
+			currentChannelWeewooCmd = reminder.WeewooCommand
+			currentChannelReminderID = rid
+			foundChannel = true
+		}
+	}
+
+	return currentChannelWeewooCmd, currentChannelReminderID, foundChannel
+}
+
 // clear the reminder messages that the bot has sent out for wall checks.
 func clearReminderMessages(d *discordgo.Session, GuildID string, reminderID string) {
 	//for i := 0; i < len(config.Guilds[GuildID].Reminders[reminderID].ReminderMessages); i++ {
@@ -183,6 +213,20 @@ func clearReminderMessages(d *discordgo.Session, GuildID string, reminderID stri
 	}
 	config.Guilds[GuildID].Reminders[reminderID].ReminderMessages = config.Guilds[GuildID].Reminders[reminderID].ReminderMessages[:0]
 	ConfigHelper.SaveConfig(configFile, config)
+}
+
+// extract the channel ID
+func extractChannel(d *discordgo.Session, input string) (*discordgo.Channel, error) {
+	channelID := strings.Replace(input, "<", "", -1)
+	channelID = strings.Replace(channelID, ">", "", -1)
+	channelID = strings.Replace(channelID, "#", "", -1)
+
+	channel, err := d.Channel(channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	return channel, nil
 }
 
 // test func for the unit tests - can be removed if we can figure out how to do unit testing with the discord api mocked somehow.
