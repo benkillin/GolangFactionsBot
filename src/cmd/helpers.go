@@ -27,7 +27,9 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discor
 			GuildName:     guild.Name,
 			Reminders:     reminders,
 			CommandPrefix: ".",
-			Players:       players}
+			Players:       players,
+			SecretAdmin:   "123456789asdfghjkl",
+		}
 	} else {
 		if guild.Name != config.Guilds[GuildID].GuildName {
 			config.Guilds[GuildID].GuildName = guild.Name

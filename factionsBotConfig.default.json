@@ -10,24 +10,60 @@
   "Guilds": {
     "123456789012345678": {
       "GuildName": "DerpGuild",
-      "WallsEnabled": false,
-      "WallsCheckTimeout": 2700000000000,
-      "WallsCheckReminder": 1800000000000,
-      "WallsLastChecked": "0001-01-01T00:00:00Z",
-      "WallsCheckChannelID": "#123456789012345678",
-      "WallsRoleMention": "@\u0026123456789012345678",
-      "WallsRoleAdmin": "",
-      "WallReminders": 0,
       "CommandPrefix": ".",
-      "ReminderMessages": null,
-      "LastReminder": "0001-01-01T00:00:00Z",
+      "BotRoleAdmin": "523075010089189378",
+      "BotAdminChannel": "",
+      "MinimumClearTimeout": 0,
+      "SecretAdmin": "",
+      "Reminders": {
+        "buffers": {
+          "ReminderName": "buffers",
+          "Enabled": true,
+          "CheckTimeout": 2700000000000,
+          "CheckReminder": 1800000000000,
+          "LastChecked": "2020-06-15T10:48:06.551739323Z",
+          "CheckChannelID": "523136929995161611",
+          "RoleMention": "523130951644217363",
+          "Reminders": 0,
+          "LastReminder": "2020-06-15T10:48:06.551739433Z",
+          "ReminderMessages": null,
+          "WeewoosAllowed": false,
+          "WeewooMessage": "",
+          "WeewooCommand": ""
+        },
+        "walls": {
+          "ReminderName": "walls",
+          "Enabled": true,
+          "CheckTimeout": 2700000000000,
+          "CheckReminder": 1800000000000,
+          "LastChecked": "2020-06-15T10:48:06.551739113Z",
+          "CheckChannelID": "523136929995161611",
+          "RoleMention": "523130951644217363",
+          "Reminders": 0,
+          "LastReminder": "2020-06-15T10:48:06.551739223Z",
+          "ReminderMessages": null,
+          "WeewoosAllowed": false,
+          "WeewooMessage": "",
+          "WeewooCommand": ""
+        }
+      },
       "Players": {
         "123456789012345678": {
           "PlayerString": "Derp#1234",
           "PlayerUsername": "asdfasdfasdf",
           "PlayerMention": "@123456789012345678",
-          "WallChecks": 0,
-          "LastWallCheck": "0001-01-01T00:00:00Z"
+          "ReminderStats": {
+            "buffers": {
+              "Weewoos": 0,
+              "Checks": 0,
+              "LastCheck": "2020-06-15T10:48:06.551739643Z"
+            },
+            "walls": {
+              "Weewoos": 0,
+              "Checks": 0,
+              "LastCheck": "2020-06-15T10:48:06.551739533Z"
+            }
+          }
         }
       }
     }
