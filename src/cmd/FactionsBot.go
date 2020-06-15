@@ -137,7 +137,10 @@ func doTimerChecks(d *discordgo.Session) {
 							config.Guilds[guildID].Reminders[reminderID].Reminders = 1
 
 							reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID,
-								fmt.Sprintf("It's time to check %s! Time last checked %s", config.Guilds[guildID].Reminders[reminderID].ReminderName, config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second)))
+								fmt.Sprintf("It's time to check '%s'! Time last checked %s (clear reminder with %sclear)",
+									config.Guilds[guildID].Reminders[reminderID].ReminderName,
+									config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second),
+									config.Guilds[guildID].CommandPrefix))
 							config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
 							config.Guilds[guildID].Reminders[reminderID].LastReminder = time.Now()
 						} else {
@@ -146,10 +149,11 @@ func doTimerChecks(d *discordgo.Session) {
 							if time.Now().After(lastReminderPlusReminderInterval) {
 								config.Guilds[guildID].Reminders[reminderID].Reminders++
 								durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].Reminders[reminderID].LastChecked)
-								msg := fmt.Sprintf("<@&%s>, reminder to check %s! They have still not been checked! It has been %s since the last check!",
+								msg := fmt.Sprintf("<@&%s>, reminder to check '%s'! They have still not been checked! It has been %s since the last check! (clear reminder with %sclear)",
 									config.Guilds[guildID].Reminders[reminderID].RoleMention,
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
-									durationSinceLastChecked.Round(time.Second))
+									durationSinceLastChecked.Round(time.Second),
+									config.Guilds[guildID].CommandPrefix)
 								reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID, msg)
 								clearReminderMessages(d, guildID, reminderID) // TODO: verify adding reminderID here was correct?????
 								config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
