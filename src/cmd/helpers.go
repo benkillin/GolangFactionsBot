@@ -140,8 +140,8 @@ func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *di
 	}
 
 	embed := EmbedHelper.NewEmbed().
-		SetTitle("Walls settings").
-		SetDescription("Current walls settings").
+		SetTitle(fmt.Sprintf("%s settings", config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName)).
+		SetDescription(fmt.Sprintf("Current %s settings", reminderID)).
 		AddField("Guild Name", config.Guilds[msg.GuildID].GuildName).
 		AddField("Bot admin role", "<@&"+config.Guilds[msg.GuildID].BotRoleAdmin+">").
 		AddField("Reminder ID", reminderID).
