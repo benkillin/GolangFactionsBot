@@ -24,11 +24,12 @@ func checkGuild(d *discordgo.Session, channelID string, GuildID string) (*discor
 		players := make(map[string]*PlayerConfig)
 		reminders := make(map[string]*ReminderConfig)
 		config.Guilds[GuildID] = &GuildConfig{
-			GuildName:     guild.Name,
-			Reminders:     reminders,
-			CommandPrefix: ".",
-			Players:       players,
-			SecretAdmin:   "123456789asdfghjkl",
+			GuildName:           guild.Name,
+			Reminders:           reminders,
+			CommandPrefix:       ".",
+			Players:             players,
+			SecretAdmin:         "123456789asdfghjkl",
+			MinimumClearTimeout: 1 * time.Minute,
 		}
 	} else {
 		if guild.Name != config.Guilds[GuildID].GuildName {

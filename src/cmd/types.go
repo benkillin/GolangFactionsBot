@@ -26,7 +26,7 @@ type GuildConfig struct {
 	CommandPrefix       string
 	BotRoleAdmin        string
 	BotAdminChannel     string
-	MinimumClearTimeout time.Duration
+	MinimumClearTimeout time.Duration // TODO: add support for configuring this.
 	SecretAdmin         string
 
 	Reminders map[string]*ReminderConfig

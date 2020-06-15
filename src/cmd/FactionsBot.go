@@ -544,7 +544,7 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
 		playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck).Round(time.Second)
 
 		// ensure the user is not spamming clear to help their stats:
-		if !time.Now().After(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck.Add(1 * time.Minute)) {
+		if !time.Now().After(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck.Add(config.Guilds[msg.GuildID].MinimumClearTimeout)) {
 			// say the user is bad
 			sendMsg(d, config.Guilds[msg.GuildID].BotAdminChannel, fmt.Sprintf("User %s tried to spam clear the reminder '%s'.", msg.Author.Mention(), reminderID))
 			sendTempMsg(d, msg.ChannelID, fmt.Sprintf("%s tried to spam the clear command. This will not be tolerated.", msg.Author.Mention()), time.Second*45)
