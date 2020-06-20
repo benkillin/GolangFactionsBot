@@ -195,8 +195,6 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 		setCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + "clear":
 		clearCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
-	//case prefix + "weewoo": // TODO: update this to grab active reminder channels and check to see if there is a particular command for weewooing for this channel.
-	//	weewooCmd(d, msg.ChannelID, msg, splitContent)
 	case prefix + currentChannelWeewooCmd:
 		weewooCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
 	case prefix + "help":
