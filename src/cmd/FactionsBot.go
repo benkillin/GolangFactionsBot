@@ -551,6 +551,10 @@ func helpCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreat
 		embed = embed.AddField(config.Guilds[msg.GuildID].CommandPrefix+command.command, command.description)
 	}
 
+	if weewooFound {
+		embed = embed.AddField(config.Guilds[msg.GuildID].CommandPrefix+weewooCmd, "Channel specific command for initiating an alert.")
+	}
+
 	sendEmbed(d, channelID, embed.MessageEmbed)
 }
 
