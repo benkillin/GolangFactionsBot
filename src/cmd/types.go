@@ -71,6 +71,12 @@ type CmdHelp struct {
 	description string
 }
 
+// TopStatInfo represents some stats for generating the .top command of top checkers
+type TopStatInfo struct {
+	playerID string
+	stats    PlayerReminderStats
+}
+
 var availableCommands = []CmdHelp{
 	{command: "test", description: "A test command."},
 	{command: "set", description: "Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},

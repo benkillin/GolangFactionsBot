@@ -314,6 +314,12 @@ func remove(s []string, i int) []string {
 	return s[:len(s)-1]
 }
 
+// insert an element at index in an array
+// https://stackoverflow.com/questions/46128016/insert-a-value-in-a-slice-at-a-given-index
+func insertStats(a []TopStatInfo, c TopStatInfo, i int) []TopStatInfo {
+	return append(a[:i], append([]TopStatInfo{c}, a[i:]...)...)
+}
+
 // MemberHasPermission checks if a member has the given permission
 // for example, If you would like to check if user has the administrator
 // permission you would use

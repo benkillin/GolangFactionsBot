@@ -131,16 +131,19 @@ func doTimerChecks(d *discordgo.Session) {
 			for reminderID := range config.Guilds[guildID].Reminders {
 				if config.Guilds[guildID].Reminders[reminderID].Enabled {
 					lastCheckedPlusTimeout := config.Guilds[guildID].Reminders[reminderID].LastChecked.Add(config.Guilds[guildID].Reminders[reminderID].CheckTimeout)
+					currentChannelWeewooCmd := config.Guilds[guildID].Reminders[reminderID].WeewooCommand
 
 					if time.Now().After(lastCheckedPlusTimeout) {
 						if config.Guilds[guildID].Reminders[reminderID].Reminders == 0 {
 							config.Guilds[guildID].Reminders[reminderID].Reminders = 1
 
 							reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID,
-								fmt.Sprintf("It's time to check '%s'! Time last checked %s (clear reminder with %sclear)",
+								fmt.Sprintf("It's time to check '%s'! Time last checked %s (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
 									config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second),
-									config.Guilds[guildID].CommandPrefix))
+									config.Guilds[guildID].CommandPrefix,
+									config.Guilds[guildID].CommandPrefix,
+									currentChannelWeewooCmd))
 							config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
 							config.Guilds[guildID].Reminders[reminderID].LastReminder = time.Now()
 						} else {
@@ -149,11 +152,13 @@ func doTimerChecks(d *discordgo.Session) {
 							if time.Now().After(lastReminderPlusReminderInterval) {
 								config.Guilds[guildID].Reminders[reminderID].Reminders++
 								durationSinceLastChecked := time.Now().Sub(config.Guilds[guildID].Reminders[reminderID].LastChecked)
-								msg := fmt.Sprintf("<@&%s>, reminder to check '%s'! They have still not been checked! It has been %s since the last check! (clear reminder with %sclear)",
+								msg := fmt.Sprintf("<@&%s>, reminder to check '%s'! They have still not been checked! It has been %s since the last check! (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
 									config.Guilds[guildID].Reminders[reminderID].RoleMention,
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
 									durationSinceLastChecked.Round(time.Second),
-									config.Guilds[guildID].CommandPrefix)
+									config.Guilds[guildID].CommandPrefix,
+									config.Guilds[guildID].CommandPrefix,
+									currentChannelWeewooCmd)
 								reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID, msg)
 								clearReminderMessages(d, guildID, reminderID) // TODO: verify adding reminderID here was correct?????
 								config.Guilds[guildID].Reminders[reminderID].ReminderMessages = append(config.Guilds[guildID].Reminders[reminderID].ReminderMessages, reminderMsgID)
@@ -197,6 +202,8 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 		clearCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
 	case prefix + currentChannelWeewooCmd:
 		weewooCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
+	case prefix + "top":
+		topCmd(d, msg.ChannelID, msg, splitContent, currentChannelReminderID, foundChannel)
 	case prefix + "help":
 		helpCmd(d, msg.ChannelID, msg, splitContent, availableCommands, currentChannelWeewooCmd, foundChannel)
 	case prefix + "invite":
@@ -240,7 +247,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 					log.Errorf("Error creating role: %s", err)
 				} else {
 					role.Name = "gfb"
-					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "gfb", 0x0, false, 0x0, false)
+					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "gfb", 0x08, false, 0x0, false)
 					if err != nil {
 						log.Errorf("Error updating new role: %s", err)
 					}
@@ -615,6 +622,64 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
 	}
 }
 
+// Top command handler. Sends player stats for checks.
+func topCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, reminderID string, active bool) {
+	log.Debugf("Servicing top command for channel %s reminderID %s", channelID, reminderID)
+
+	if active {
+		stats := make([]TopStatInfo, 0, len(config.Guilds[msg.GuildID].Players))
+
+		for playerID, player := range config.Guilds[msg.GuildID].Players {
+			for curReminderID, playerStats := range player.ReminderStats {
+				if curReminderID == reminderID {
+					inserted := false
+
+					if len(stats) == 0 {
+						stats = append(stats, TopStatInfo{playerID, *playerStats})
+						break
+					}
+
+					for i, stat := range stats {
+						if playerStats.Checks >= stat.stats.Checks {
+							stats = insertStats(stats, TopStatInfo{playerID, *playerStats}, i)
+							inserted = true
+							break
+						}
+					}
+
+					if !inserted {
+						stats = append(stats, TopStatInfo{playerID, *playerStats})
+					}
+				}
+			}
+		}
+
+		if len(stats) > 0 {
+
+			topStatsMsg := EmbedHelper.NewEmbed().
+				SetTitle(fmt.Sprintf("Top player statistics for %s", reminderID))
+
+			for index, stat := range stats {
+
+				topStatsMsg.AddField(fmt.Sprintf("**%d. %s**", index+1, config.Guilds[msg.GuildID].Players[stat.playerID].PlayerUsername),
+					fmt.Sprintf("Checks: %d, Weewoos: %d, LastCheck: %s",
+						stat.stats.Checks,
+						stat.stats.Weewoos,
+						stat.stats.LastCheck.Format("Jan 2, 2006 at 3:04pm (MST)")))
+
+				//topStatsMsg.InlineAllFields()
+			}
+
+			sendEmbed(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, topStatsMsg.MessageEmbed)
+
+		} else {
+			sendTempMsg(d, channelID, "Error: The current channel has no stats.", 90*time.Second)
+		}
+	} else {
+		sendTempMsg(d, channelID, "Error: The current channel is not set up for a reminder, so there are no statistics to display.", 90*time.Second)
+	}
+}
+
 // WEE WOO!!! handler. Sends an alert message indicating that a raid is in progress.
 func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, reminderID string, active bool) {
 	if active {
@@ -640,6 +705,8 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 			sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
 				fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage))
 
+			time.Sleep(500 * time.Millisecond)
+
 			go func() {
 				for i := 0; i < 3; i++ {
 					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
@@ -648,7 +715,7 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
 							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
 						),
-						30*time.Second)
+						120*time.Second)
 					time.Sleep(500 * time.Millisecond)
 				}
 			}()
