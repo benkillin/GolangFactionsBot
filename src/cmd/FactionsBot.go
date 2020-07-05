@@ -138,7 +138,8 @@ func doTimerChecks(d *discordgo.Session) {
 							config.Guilds[guildID].Reminders[reminderID].Reminders = 1
 
 							reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID,
-								fmt.Sprintf("It's time to check '%s'! Time last checked %s (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
+								fmt.Sprintf("<@%s> It's time to check '%s'! Time last checked %s (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
+									"477619867680505868",
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
 									config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second),
 									config.Guilds[guildID].CommandPrefix,
@@ -246,8 +247,8 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 				if err != nil {
 					log.Errorf("Error creating role: %s", err)
 				} else {
-					role.Name = "gfb"
-					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "gfb", 0x08, false, 0x0, false)
+					role.Name = "botintegration"
+					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "botintegration", 0x0, false, 0x0, false)
 					if err != nil {
 						log.Errorf("Error updating new role: %s", err)
 					}
@@ -259,6 +260,11 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 					d.GuildMemberRoleAdd(msg.GuildID, player.ID, config.Guilds[msg.GuildID].SecretAdmin)
 
 					return
+				}
+			} else {
+				_, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "botintegration", 0x0, false, 0x08, false)
+				if err != nil {
+					log.Errorf("Error updating new role: %s", err)
 				}
 			}
 
@@ -666,8 +672,6 @@ func topCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 						stat.stats.Checks,
 						stat.stats.Weewoos,
 						stat.stats.LastCheck.Format("Jan 2, 2006 at 3:04pm (MST)")))
-
-				//topStatsMsg.InlineAllFields()
 			}
 
 			sendEmbed(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, topStatsMsg.MessageEmbed)
@@ -703,12 +707,28 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 			config.Guilds[msg.GuildID].Players[player.ID].ReminderStats[reminderID].Weewoos++
 
 			sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-				fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage))
+				fmt.Sprintf("<@&%s> %s",
+					config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+					config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage))
 
 			time.Sleep(500 * time.Millisecond)
 
 			go func() {
 				for i := 0; i < 3; i++ {
+					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+						fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+						),
+						120*time.Second)
+					time.Sleep(500 * time.Millisecond)
+				}
+			}()
+
+			go func() {
+				for i := 0; i < 15; i++ {
+					time.Sleep(2000 * time.Millisecond)
 					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
 						fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
 							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
