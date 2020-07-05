@@ -375,6 +375,8 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 						} else {
 							sendTempMsg(d, channelID, "(weewooCmd) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
 						}
+					case "weewooTimeout":
+						// TODO: Implement weewoo spam timeout setting
 					case "on":
 						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = true
 						changed = true
@@ -521,19 +523,20 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 				// check to see if the requested reminder ID exists:
 				if _, ok := config.Guilds[msg.GuildID].Reminders[newReminderID]; !ok {
 					config.Guilds[msg.GuildID].Reminders[newReminderID] = &ReminderConfig{
-						CheckChannelID:   "TODO: SET CHECK CHANNEL ID",
-						CheckReminder:    30 * time.Minute,
-						CheckTimeout:     45 * time.Minute,
-						Enabled:          false,
-						LastChecked:      time.Now(),
-						LastReminder:     time.Now(),
-						ReminderMessages: []string{},
-						ReminderName:     "TODO: SET REMINDER NAME",
-						Reminders:        0,
-						RoleMention:      "TODO: SET ROLE",
-						WeewooMessage:    "This is the default weewoo message indicating an alert for this reminder has been confirmed as in progress. You can update this message using the bot set reminder commands.",
-						WeewooCommand:    "TODO: SET THE COMMAND TO TRIGGER THE ALERT FOR THIS REMINDER",
-						WeewoosAllowed:   false,
+						CheckChannelID:    "TODO: SET CHECK CHANNEL ID",
+						CheckReminder:     30 * time.Minute,
+						CheckTimeout:      45 * time.Minute,
+						Enabled:           false,
+						LastChecked:       time.Now(),
+						LastReminder:      time.Now(),
+						ReminderMessages:  []string{},
+						ReminderName:      "TODO: SET REMINDER NAME",
+						Reminders:         0,
+						RoleMention:       "TODO: SET ROLE",
+						WeewooMessage:     "This is the default weewoo message indicating an alert for this reminder has been confirmed as in progress. You can update this message using the bot set reminder commands.",
+						WeewooCommand:     "TODO: SET THE COMMAND TO TRIGGER THE ALERT FOR THIS REMINDER",
+						WeewoosAllowed:    false,
+						WeewooSpamTimeout: 60 * time.Second,
 					}
 					ConfigHelper.SaveConfig(configFile, config)
 					sendMsg(d, channelID, fmt.Sprintf("Added new reminder with ID '%s'. You must now use the '%sset reminder %s' commands for setting the reminder name, weewoo message, turning on or off weewoos, enabling the reminder, and setting the timeout, reminder interval, mention role, and channel for the reminder.", newReminderID, config.Guilds[msg.GuildID].CommandPrefix, newReminderID))
@@ -726,19 +729,29 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 				}
 			}()
 
-			go func() {
-				for i := 0; i < 15; i++ {
+			// TODO: implement a new set command for a spam timeout on weewoo commands instead of having the timeout hardcoded
+			//lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
+			lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(60 * time.Second)
+
+			if time.Now().After(lastWeewooPlusTimeout) {
+				go func() {
 					time.Sleep(2000 * time.Millisecond)
-					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-						fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
-							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
-							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
-							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
-						),
-						120*time.Second)
-					time.Sleep(500 * time.Millisecond)
-				}
-			}()
+					for i := 0; i < 30; i++ {
+						time.Sleep(2000 * time.Millisecond)
+						sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+							fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+								config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+								config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+								config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+							),
+							120*time.Second)
+						time.Sleep(500 * time.Millisecond)
+					}
+				}()
+			}
+
+			config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo = time.Now()
+			ConfigHelper.SaveConfig(configFile, config)
 		} else {
 			sendMsg(d, msg.ChannelID, fmt.Sprintf("Error: the command '%s%s' is not enabled.", config.Guilds[msg.GuildID].CommandPrefix, config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand))
 		}

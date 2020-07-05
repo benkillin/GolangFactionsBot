@@ -154,6 +154,7 @@ func sendCurrentReminderSettings(d *discordgo.Session, channelID string, msg *di
 		AddField("Reminder last checked", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked)).
 		AddField("Reminder alert message", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage)).
 		AddField("Reminder alert command", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooCommand)).
+		AddField("Reminder alert spam timeout", fmt.Sprintf("%s", config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)).
 		AddField("Reminder alert enabled?", fmt.Sprintf("%t", config.Guilds[msg.GuildID].Reminders[reminderID].WeewoosAllowed)).
 		MessageEmbed
 

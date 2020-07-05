@@ -35,19 +35,21 @@ type GuildConfig struct {
 
 // ReminderConfig represents a type of reminder (Buffers, Walls, Anything else you want to be periodically reminded to check and have the option to weewoo against for the faction to come help with)
 type ReminderConfig struct {
-	ReminderName     string
-	Enabled          bool
-	CheckTimeout     time.Duration
-	CheckReminder    time.Duration
-	LastChecked      time.Time
-	CheckChannelID   string
-	RoleMention      string
-	Reminders        int
-	LastReminder     time.Time
-	ReminderMessages []string
-	WeewoosAllowed   bool
-	WeewooMessage    string
-	WeewooCommand    string
+	ReminderName      string
+	Enabled           bool
+	CheckTimeout      time.Duration
+	CheckReminder     time.Duration
+	LastChecked       time.Time
+	CheckChannelID    string
+	RoleMention       string
+	Reminders         int
+	LastReminder      time.Time
+	ReminderMessages  []string
+	WeewoosAllowed    bool
+	WeewooMessage     string
+	WeewooCommand     string
+	LastWeewoo        time.Time
+	WeewooSpamTimeout time.Duration // TODO: change the weewooCmd function in factionsbot.go to use this instead of the hardcoded value.
 }
 
 // PlayerConfig represents the players and their scores.
@@ -80,11 +82,9 @@ type TopStatInfo struct {
 var availableCommands = []CmdHelp{
 	{command: "test", description: "A test command."},
 	{command: "set", description: "Set settings for the bot such as enabling/disabling wall checks and setting the channel and role for checks."},
-	// TODO: might have to require having a specified reminder type for /clear andf /weewoo - or infer based on channel.
 	{command: "clear", description: "Clear the reminder for checking on whatever this reminder channel is for."},
 	//CmdHelp{command: "weewoo", description: "Trigger an alert for whatever this channel is supposed to be a reminder channel for."},
-	// TODO: implement the top command
-	{command: "top", description: "Display top player statistics. TODO: IMPLEMENT THIS COMMAND"},
+	{command: "top", description: "Display top player statistics."},
 	{command: "help", description: "This help command menu."},
 	{command: "invite", description: "Private message you the invite link for this bot to join a server you are an administrator of."},
 	{command: "lennyface", description: "Emoji: giggity"},
@@ -110,6 +110,7 @@ var setCommands = []CmdHelp{
 	{command: "set reminder {reminderID} weewooEnabled on", description: "Enable weewoos for this reminder type."},
 	{command: "set reminder {reminderID} weewooEnabled off", description: "Disable weewoos for this reminder type."},
 	{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
+	{command: "set reminder {reminderID} weewooTimeout (timeout)", description: "TODO: IMPLEMENT THIS COMMAND CURRENTLY HARDCODED AS 1 PER MINUTE. Set the anti-spam timeout on adding 15 additional mentions when using the weewoo command. By default once you execute the reminder alert command (aka the weewoo command), 3 quick @role mentions will be sent, followed by 15 slower @role mentions for the weewoo alert message."},
 	{command: "set reminder {reminderID} on", description: "Enable checks for specified reminder type."},
 	{command: "set reminder {reminderID} off", description: "Disable checks for specified reminder type."},
 	{command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
