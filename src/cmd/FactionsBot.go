@@ -376,7 +376,12 @@ func setCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate
 							sendTempMsg(d, channelID, "(weewooCmd) YOU DONE FUCKED UP, A-A-RON!", 10*time.Second)
 						}
 					case "weewooTimeout":
-						// TODO: Implement weewoo spam timeout setting
+						if len(splitMessage) > 4 {
+							changed = true
+							checkHourMinuteDuration(splitMessage[4], func(userDuration time.Duration) {
+								config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout = userDuration
+							}, d, channelID, msg)
+						}
 					case "on":
 						config.Guilds[msg.GuildID].Reminders[reminderID].Enabled = true
 						changed = true
@@ -716,28 +721,11 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 
 			time.Sleep(500 * time.Millisecond)
 
-			go func() {
-				for i := 0; i < 3; i++ {
-					sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-						fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
-							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
-							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
-							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
-						),
-						120*time.Second)
-					time.Sleep(500 * time.Millisecond)
-				}
-			}()
-
-			// TODO: implement a new set command for a spam timeout on weewoo commands instead of having the timeout hardcoded
-			//lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
-			lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(60 * time.Second)
+			lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
 
 			if time.Now().After(lastWeewooPlusTimeout) {
 				go func() {
-					time.Sleep(2000 * time.Millisecond)
-					for i := 0; i < 30; i++ {
-						time.Sleep(2000 * time.Millisecond)
+					for i := 0; i < 3; i++ {
 						sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
 							fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
 								config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
@@ -747,6 +735,33 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 							120*time.Second)
 						time.Sleep(500 * time.Millisecond)
 					}
+				}()
+
+				lastWeewooPlusTimeout = config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
+
+				if time.Now().After(lastWeewooPlusTimeout) {
+					go func() {
+						time.Sleep(2000 * time.Millisecond)
+						for i := 0; i < 30; i++ {
+							time.Sleep(2000 * time.Millisecond)
+							sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+								fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+									config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+									config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+									config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+								),
+								120*time.Second)
+							time.Sleep(500 * time.Millisecond)
+						}
+					}()
+				}
+			} else {
+				go func() {
+					time.Sleep(2000 * time.Millisecond)
+					sendTempMsg(d,
+						config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+						"Error: spam limit reached, cannot send 45 more messages. Will only continue with sending the initial message",
+						240*time.Second)
 				}()
 			}
 

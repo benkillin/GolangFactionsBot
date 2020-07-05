@@ -117,7 +117,7 @@ func checkRole(d *discordgo.Session, msg *discordgo.MessageCreate, requiredRole 
 
 // support func for setting the walls timeout and reminder duration.
 func checkHourMinuteDuration(userInputDuration string, handler func(userDuration time.Duration), d *discordgo.Session, channelID string, msg *discordgo.MessageCreate) {
-	if strings.HasSuffix(userInputDuration, "m") || strings.HasSuffix(userInputDuration, "h") {
+	if strings.HasSuffix(userInputDuration, "m") || strings.HasSuffix(userInputDuration, "h") || strings.HasSuffix(userInputDuration, "s") {
 		userDuration, err := time.ParseDuration(userInputDuration)
 		if err != nil {
 			log.Errorf("User specified invalid duration.")
@@ -127,7 +127,7 @@ func checkHourMinuteDuration(userInputDuration string, handler func(userDuration
 		handler(userDuration)
 	} else {
 		log.Errorf("User specified invalid suffix for time duration.")
-		sendTempMsg(d, channelID, "Error - invalid time units. You must specify 'm' or 'h'.", 30*time.Second)
+		sendTempMsg(d, channelID, "Error - invalid time units. You must specify 's', 'm', or 'h'.", 30*time.Second)
 		return
 	}
 }

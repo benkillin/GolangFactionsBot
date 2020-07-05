@@ -110,7 +110,7 @@ var setCommands = []CmdHelp{
 	{command: "set reminder {reminderID} weewooEnabled on", description: "Enable weewoos for this reminder type."},
 	{command: "set reminder {reminderID} weewooEnabled off", description: "Disable weewoos for this reminder type."},
 	{command: "set reminder {reminderID} weewooCmd {command}", description: "Set the command for a weewoo alert."},
-	{command: "set reminder {reminderID} weewooTimeout (timeout)", description: "TODO: IMPLEMENT THIS COMMAND CURRENTLY HARDCODED AS 1 PER MINUTE. Set the anti-spam timeout on adding 15 additional mentions when using the weewoo command. By default once you execute the reminder alert command (aka the weewoo command), 3 quick @role mentions will be sent, followed by 15 slower @role mentions for the weewoo alert message."},
+	{command: "set reminder {reminderID} weewooTimeout (timeout)", description: "Set the anti-spam timeout on adding 15 additional mentions when using the weewoo command. By default once you execute the reminder alert command (aka the weewoo command), 3 quick @role mentions will be sent, followed by 15 slower @role mentions for the weewoo alert message."},
 	{command: "set reminder {reminderID} on", description: "Enable checks for specified reminder type."},
 	{command: "set reminder {reminderID} off", description: "Disable checks for specified reminder type."},
 	{command: "set reminder {reminderID} role (role)", description: "The role to mention for reminders and weewoos, and require for doing clear and weewoo commands (Server administrators always allowed)."},
