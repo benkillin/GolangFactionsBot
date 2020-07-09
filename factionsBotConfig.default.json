@@ -21,30 +21,34 @@
           "Enabled": true,
           "CheckTimeout": 2700000000000,
           "CheckReminder": 1800000000000,
-          "LastChecked": "2020-07-04T08:44:01.242763399Z",
+          "LastChecked": "2020-07-09T06:03:24.749190771Z",
           "CheckChannelID": "523136929995161611",
           "RoleMention": "523130951644217363",
           "Reminders": 0,
-          "LastReminder": "2020-07-04T08:44:01.242763509Z",
+          "LastReminder": "2020-07-09T06:03:24.749190881Z",
           "ReminderMessages": null,
           "WeewoosAllowed": false,
           "WeewooMessage": "",
-          "WeewooCommand": ""
+          "WeewooCommand": "",
+          "LastWeewoo": "0001-01-01T00:00:00Z",
+          "WeewooSpamTimeout": 0
         },
         "walls": {
           "ReminderName": "walls",
           "Enabled": true,
           "CheckTimeout": 2700000000000,
           "CheckReminder": 1800000000000,
-          "LastChecked": "2020-07-04T08:44:01.242763149Z",
+          "LastChecked": "2020-07-09T06:03:24.749190421Z",
           "CheckChannelID": "523136929995161611",
           "RoleMention": "523130951644217363",
           "Reminders": 0,
-          "LastReminder": "2020-07-04T08:44:01.242763299Z",
+          "LastReminder": "2020-07-09T06:03:24.749190661Z",
           "ReminderMessages": null,
           "WeewoosAllowed": false,
           "WeewooMessage": "",
-          "WeewooCommand": ""
+          "WeewooCommand": "",
+          "LastWeewoo": "0001-01-01T00:00:00Z",
+          "WeewooSpamTimeout": 0
         }
       },
       "Players": {
@@ -56,12 +60,12 @@
             "buffers": {
               "Weewoos": 0,
               "Checks": 0,
-              "LastCheck": "2020-07-04T08:44:01.242763719Z"
+              "LastCheck": "2020-07-09T06:03:24.749191121Z"
             },
             "walls": {
               "Weewoos": 0,
               "Checks": 0,
-              "LastCheck": "2020-07-04T08:44:01.242763609Z"
+              "LastCheck": "2020-07-09T06:03:24.749191001Z"
             }
           }
         }

