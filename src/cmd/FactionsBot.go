@@ -608,7 +608,8 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
 		playerLastWallCheck := time.Now().Sub(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck).Round(time.Second)
 
 		// ensure the user is not spamming clear to help their stats:
-		if !time.Now().After(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck.Add(config.Guilds[msg.GuildID].MinimumClearTimeout)) {
+		if !time.Now().After(config.Guilds[msg.GuildID].Players[msg.Author.ID].ReminderStats[reminderID].LastCheck.Add(config.Guilds[msg.GuildID].MinimumClearTimeout)) ||
+			!time.Now().After(config.Guilds[msg.GuildID].Reminders[reminderID].LastChecked.Add(config.Guilds[msg.GuildID].MinimumClearTimeout)) {
 			// say the user is bad
 			sendMsg(d, config.Guilds[msg.GuildID].BotAdminChannel, fmt.Sprintf("User %s tried to spam clear the reminder '%s'.", msg.Author.Mention(), reminderID))
 			sendTempMsg(d, msg.ChannelID, fmt.Sprintf("%s tried to spam the clear command. This will not be tolerated.", msg.Author.Mention()), time.Second*45)
@@ -649,7 +650,16 @@ func clearCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCrea
 func topCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCreate, splitMessage []string, reminderID string, active bool) {
 	log.Debugf("Servicing top command for channel %s reminderID %s", channelID, reminderID)
 
+	checkGuild(d, channelID, msg.GuildID)
+
 	if active {
+		deleteMsg(d, msg.ChannelID, msg.ID)
+		err := checkRole(d, msg, config.Guilds[msg.GuildID].BotRoleAdmin)
+		if err != nil {
+			sendTempMsg(d, channelID, "To avoid cluttering the channel, the top command has been restricted to the bot admin role.", 30*time.Second)
+			return
+		}
+
 		stats := make([]TopStatInfo, 0, len(config.Guilds[msg.GuildID].Players))
 
 		for playerID, player := range config.Guilds[msg.GuildID].Players {
