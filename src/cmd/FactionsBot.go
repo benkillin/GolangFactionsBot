@@ -111,6 +111,7 @@ func main() {
 
 	botID = bot.ID
 	d.AddHandler(messageHandler)
+	d.AddHandler(guildMembersHandler)
 
 	err = d.Open()
 	if err != nil {
@@ -186,8 +187,9 @@ func doTimerChecks(d *discordgo.Session) {
 	}
 }
 
-func presenceHandler(d *discordgo.Session, mupdate *discordgo.PresenceUpdate) {
+func guildMembersHandler(d *discordgo.Session, mupdate *discordgo.GuildMembersChunk) {
 	// TODO: Figure out how to give a notification that someone left the server
+	log.Debugf("Inside the guild members chunk handler")
 }
 
 // our command handler function
@@ -742,14 +744,30 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 
 			lastWeewooPlusTimeout := config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
 
+			// get everybody with the mention role to directly mention them in the initial 3 spam weewoo messages.
+			directMentionsInRole := ""
+			guild, err := d.Guild(msg.GuildID)
+			if err != nil {
+				log.Debugf("Error obtaining all guild members: %s", err)
+				sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, "Error: unable to obtain guild members. This weewoo has failed! PANIC! PANIC! REEEEEEEEEEEEEEEE")
+			}
+			for _, member := range guild.Members {
+				for _, role := range member.Roles {
+					if role == config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention {
+						directMentionsInRole += member.User.Mention() + ", "
+					}
+				}
+			}
+
 			if time.Now().After(lastWeewooPlusTimeout) {
 				go func() {
 					for i := 0; i < 3; i++ {
 						sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-							fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+							fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s %s",
 								config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
 								config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
 								config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+								directMentionsInRole,
 							),
 							120*time.Second)
 						time.Sleep(500 * time.Millisecond)
