@@ -764,7 +764,7 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 
 			log.Debugf("All users in alert role: %s", directMentionsInRole)
 
-			if time.Now().After(lastWeewooPlusTimeout) || true {
+			if time.Now().After(lastWeewooPlusTimeout) {
 				go func() {
 					for i := 0; i < 3; i++ {
 						message := fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s PLZRESPOND: %s",
@@ -782,22 +782,22 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 
 				lastWeewooPlusTimeout = config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
 
-				// if time.Now().After(lastWeewooPlusTimeout) {
-				// 	go func() {
-				// 		time.Sleep(2000 * time.Millisecond)
-				// 		for i := 0; i < 30; i++ {
-				// 			time.Sleep(2000 * time.Millisecond)
-				// 			sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-				// 				fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
-				// 					config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
-				// 					config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
-				// 					config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
-				// 				),
-				// 				120*time.Second)
-				// 			time.Sleep(500 * time.Millisecond)
-				// 		}
-				// 	}()
-				// }
+				if time.Now().After(lastWeewooPlusTimeout) {
+					go func() {
+						time.Sleep(2000 * time.Millisecond)
+						for i := 0; i < 30; i++ {
+							time.Sleep(2000 * time.Millisecond)
+							sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+								fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+									config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+									config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+									config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+								),
+								120*time.Second)
+							time.Sleep(500 * time.Millisecond)
+						}
+					}()
+				}
 			} else {
 				go func() {
 					time.Sleep(2000 * time.Millisecond)
