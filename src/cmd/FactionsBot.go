@@ -148,8 +148,7 @@ func doTimerChecks(d *discordgo.Session) {
 							config.Guilds[guildID].Reminders[reminderID].Reminders = 1
 
 							reminderMsgID := sendMsg(d, config.Guilds[guildID].Reminders[reminderID].CheckChannelID,
-								fmt.Sprintf("<@%s> It's time to check '%s'! Time last checked %s (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
-									"477619867680505868",
+								fmt.Sprintf("It's time to check '%s'! Time last checked %s (clear reminder with `%sclear`, trigger weewoo alert with `%s%s`)",
 									config.Guilds[guildID].Reminders[reminderID].ReminderName,
 									config.Guilds[guildID].Reminders[reminderID].LastChecked.Round(time.Second),
 									config.Guilds[guildID].CommandPrefix,
