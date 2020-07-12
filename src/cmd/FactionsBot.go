@@ -755,6 +755,7 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 				for _, role := range member.Roles {
 					if role == config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention {
 						directMentionsInRole += member.User.Mention() + ", "
+						break
 					}
 				}
 			}
