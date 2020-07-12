@@ -762,14 +762,13 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 			if time.Now().After(lastWeewooPlusTimeout) {
 				go func() {
 					for i := 0; i < 3; i++ {
-						sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+						sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
 							fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s %s",
 								config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
 								config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
 								config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
 								directMentionsInRole,
-							),
-							120*time.Second)
+							))
 						time.Sleep(500 * time.Millisecond)
 					}
 				}()
