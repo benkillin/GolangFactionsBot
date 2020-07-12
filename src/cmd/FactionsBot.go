@@ -751,19 +751,23 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 				log.Debugf("Error obtaining all guild members: %s", err)
 				sendMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID, "Error: unable to obtain guild members. This weewoo has failed! PANIC! PANIC! REEEEEEEEEEEEEEEE")
 			}
+			if len(guild.Members) < 1 {
+				log.Debugf("WHAT THE ACTUAL FUCCCCCKKKK?!?!?!?!?")
+			}
 			for _, member := range guild.Members {
 				for _, role := range member.Roles {
 					if role == config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention {
-						directMentionsInRole += member.User.Mention() + ", "
-						break
+						directMentionsInRole += member.User.Mention() + " "
 					}
 				}
 			}
 
-			if time.Now().After(lastWeewooPlusTimeout) {
+			log.Debugf("All users in alert role: %s", directMentionsInRole)
+
+			if time.Now().After(lastWeewooPlusTimeout) || true {
 				go func() {
 					for i := 0; i < 3; i++ {
-						message := fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s %s",
+						message := fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s PLZRESPOND: %s",
 							config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
 							config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
 							config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
@@ -778,22 +782,22 @@ func weewooCmd(d *discordgo.Session, channelID string, msg *discordgo.MessageCre
 
 				lastWeewooPlusTimeout = config.Guilds[msg.GuildID].Reminders[reminderID].LastWeewoo.Add(config.Guilds[msg.GuildID].Reminders[reminderID].WeewooSpamTimeout)
 
-				if time.Now().After(lastWeewooPlusTimeout) {
-					go func() {
-						time.Sleep(2000 * time.Millisecond)
-						for i := 0; i < 30; i++ {
-							time.Sleep(2000 * time.Millisecond)
-							sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
-								fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
-									config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
-									config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
-									config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
-								),
-								120*time.Second)
-							time.Sleep(500 * time.Millisecond)
-						}
-					}()
-				}
+				// if time.Now().After(lastWeewooPlusTimeout) {
+				// 	go func() {
+				// 		time.Sleep(2000 * time.Millisecond)
+				// 		for i := 0; i < 30; i++ {
+				// 			time.Sleep(2000 * time.Millisecond)
+				// 			sendTempMsg(d, config.Guilds[msg.GuildID].Reminders[reminderID].CheckChannelID,
+				// 				fmt.Sprintf("<@&%s> THE %s ALERT HAS BEEN ACTIVATED! %s",
+				// 					config.Guilds[msg.GuildID].Reminders[reminderID].RoleMention,
+				// 					config.Guilds[msg.GuildID].Reminders[reminderID].ReminderName,
+				// 					config.Guilds[msg.GuildID].Reminders[reminderID].WeewooMessage,
+				// 				),
+				// 				120*time.Second)
+				// 			time.Sleep(500 * time.Millisecond)
+				// 		}
+				// 	}()
+				// }
 			} else {
 				go func() {
 					time.Sleep(2000 * time.Millisecond)

@@ -21,11 +21,11 @@
           "Enabled": true,
           "CheckTimeout": 2700000000000,
           "CheckReminder": 1800000000000,
-          "LastChecked": "2020-07-12T08:23:36.501486838Z",
+          "LastChecked": "2020-07-12T11:33:10.977334729Z",
           "CheckChannelID": "523136929995161611",
           "RoleMention": "523130951644217363",
           "Reminders": 0,
-          "LastReminder": "2020-07-12T08:23:36.501486928Z",
+          "LastReminder": "2020-07-12T11:33:10.977334819Z",
           "ReminderMessages": null,
           "WeewoosAllowed": false,
           "WeewooMessage": "",
@@ -38,11 +38,11 @@
           "Enabled": true,
           "CheckTimeout": 2700000000000,
           "CheckReminder": 1800000000000,
-          "LastChecked": "2020-07-12T08:23:36.501486658Z",
+          "LastChecked": "2020-07-12T11:33:10.977334449Z",
           "CheckChannelID": "523136929995161611",
           "RoleMention": "523130951644217363",
           "Reminders": 0,
-          "LastReminder": "2020-07-12T08:23:36.501486748Z",
+          "LastReminder": "2020-07-12T11:33:10.977334639Z",
           "ReminderMessages": null,
           "WeewoosAllowed": false,
           "WeewooMessage": "",
@@ -60,12 +60,12 @@
             "buffers": {
               "Weewoos": 0,
               "Checks": 0,
-              "LastCheck": "2020-07-12T08:23:36.501487118Z"
+              "LastCheck": "2020-07-12T11:33:10.977334999Z"
             },
             "walls": {
               "Weewoos": 0,
               "Checks": 0,
-              "LastCheck": "2020-07-12T08:23:36.501487018Z"
+              "LastCheck": "2020-07-12T11:33:10.977334909Z"
             }
           }
         }

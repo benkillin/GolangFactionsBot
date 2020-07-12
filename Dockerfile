@@ -15,6 +15,9 @@ COPY .git ./.git
 COPY src ./src
 COPY factionsBotConfig.json .
 COPY start.sh .
+COPY ./discordgoCopy/ $GOPATH/src/github.com/bwmarrin/discordgo/
+
+RUN ls -al $GOPATH/src/github.com/bwmarrin/discordgo/
 
 RUN go get -d -v ./src/cmd && \
     mkdir -p /opt/FactionsBot/ && \
